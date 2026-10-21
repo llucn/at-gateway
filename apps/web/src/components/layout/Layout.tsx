@@ -1,78 +1,146 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../lib/auth-store';
+import { useThemeStore } from '../../lib/theme-store';
+import Sidebar from './Sidebar';
 
 export default function Layout() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const avatarRef = useRef<HTMLDivElement>(null);
+
   const handleLogout = () => {
+    setAvatarMenuOpen(false);
     logout();
     navigate('/login');
   };
 
+  // Close avatar dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
+        setAvatarMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const displayName = user?.displayName || user?.username || '?';
+  const initials = displayName.slice(0, 2).toUpperCase();
+
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <nav className="bg-white dark:bg-gray-800 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <span className="text-xl font-bold text-gray-900 dark:text-white">
-                  AT Gateway
-                </span>
-              </div>
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <Link
-                  to="/"
-                  className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                >
-                  仪表盘
-                </Link>
-                <Link
-                  to="/sms"
-                  className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                >
-                  短信
-                </Link>
-                <Link
-                  to="/calls"
-                  className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                >
-                  通话
-                </Link>
-                <Link
-                  to="/recordings"
-                  className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                >
-                  录音
-                </Link>
-                <Link
-                  to="/settings"
-                  className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                >
-                  设置
-                </Link>
-              </div>
+    <div className="app-layout">
+      {/* Topbar */}
+      <header className="topbar">
+        {/* Hamburger — visible only below 1024px */}
+        <button
+          className="topbar-menu-btn"
+          aria-label={sidebarOpen ? '关闭菜单' : '打开菜单'}
+          onClick={() => setSidebarOpen((v) => !v)}
+        >
+          {sidebarOpen ? (
+            // X icon
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="2" y1="2" x2="14" y2="14" />
+              <line x1="14" y1="2" x2="2" y2="14" />
+            </svg>
+          ) : (
+            // Hamburger icon
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="2" y1="4" x2="14" y2="4" />
+              <line x1="2" y1="8" x2="14" y2="8" />
+              <line x1="2" y1="12" x2="14" y2="12" />
+            </svg>
+          )}
+        </button>
+
+        {/* System title */}
+        <span className="topbar-brand">AT Gateway</span>
+
+        <div className="topbar-spacer" />
+
+        <div className="topbar-actions">
+          {/* Theme toggle */}
+          <button
+            className="theme-toggle-btn"
+            aria-label={theme === 'dark' ? '切换浅色主题' : '切换深色主题'}
+            onClick={toggleTheme}
+            title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+          >
+            {theme === 'dark' ? (
+              // Sun icon
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              // Moon icon
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+
+          {/* Username */}
+          <span className="topbar-username">{displayName}</span>
+
+          {/* Avatar + dropdown */}
+          <div className="topbar-avatar-wrapper" ref={avatarRef}>
+            <div
+              className="topbar-avatar"
+              role="button"
+              tabIndex={0}
+              aria-label="用户菜单"
+              onClick={() => setAvatarMenuOpen((v) => !v)}
+              onKeyDown={(e) => e.key === 'Enter' && setAvatarMenuOpen((v) => !v)}
+            >
+              {initials}
             </div>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700 dark:text-gray-300 mr-4">
-                {user?.displayName || user?.username}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-              >
-                退出
-              </button>
-            </div>
+            {avatarMenuOpen && (
+              <div className="avatar-dropdown">
+                <div className="avatar-dropdown-info">
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{displayName}</div>
+                  {user?.email && (
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{user.email}</div>
+                  )}
+                </div>
+                <button className="avatar-dropdown-item" onClick={handleLogout}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </nav>
+      </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <Outlet />
-      </main>
+      {/* Body: sidebar + main */}
+      <div className="app-body">
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+        <main className="main">
+          <div className="content">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

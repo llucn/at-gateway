@@ -3,26 +3,68 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 class ApiClient {
   private baseURL: string;
 
+  // Shared promise while a token refresh is in-flight, so concurrent 401s
+  // only trigger one refresh request instead of N parallel ones.
+  private refreshingPromise: Promise<string> | null = null;
+
   constructor(baseURL: string) {
     this.baseURL = baseURL;
   }
 
-  private getHeaders(): HeadersInit {
+  private getHeaders(token?: string): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
 
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    const accessToken = token ?? localStorage.getItem('accessToken');
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
     return headers;
   }
 
+  /** Attempt to refresh the access token.  Returns the new access token. */
+  private async doRefresh(): Promise<string> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) throw new Error('No refresh token');
+
+    const response = await fetch(`${this.baseURL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) throw new Error('Refresh failed');
+
+    const data = await response.json();
+    const newAccess: string = data.accessToken;
+    const newRefresh: string = data.refreshToken ?? refreshToken;
+
+    // Persist to both storage locations used by auth-store
+    localStorage.setItem('accessToken', newAccess);
+    localStorage.setItem('refreshToken', newRefresh);
+
+    // Also update the Zustand persisted store so the UI stays in sync
+    try {
+      const raw = localStorage.getItem('auth-storage');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.state) {
+          parsed.state.accessToken = newAccess;
+          parsed.state.refreshToken = newRefresh;
+          localStorage.setItem('auth-storage', JSON.stringify(parsed));
+        }
+      }
+    } catch { /* ignore */ }
+
+    return newAccess;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
+    _retry = false,
   ): Promise<T> {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
@@ -31,6 +73,54 @@ class ApiClient {
         ...options.headers,
       },
     });
+
+    // Auto-refresh on 401, but only once per original request
+    if (response.status === 401 && !_retry) {
+      try {
+        // Coalesce concurrent refreshes into a single in-flight promise
+        if (!this.refreshingPromise) {
+          this.refreshingPromise = this.doRefresh().finally(() => {
+            this.refreshingPromise = null;
+          });
+        }
+        const newToken = await this.refreshingPromise;
+
+        // Retry the original request with the new token
+        const retryResponse = await fetch(`${this.baseURL}${endpoint}`, {
+          ...options,
+          headers: {
+            ...this.getHeaders(newToken),
+            ...options.headers,
+          },
+        });
+
+        if (!retryResponse.ok) {
+          const error = await retryResponse.json().catch(() => ({ message: 'Request failed' }));
+          throw new Error(error.message || `HTTP ${retryResponse.status}`);
+        }
+
+        return retryResponse.json();
+      } catch {
+        // Refresh failed — clear auth state and force re-login
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        try {
+          const raw = localStorage.getItem('auth-storage');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.state) {
+              parsed.state.accessToken = null;
+              parsed.state.refreshToken = null;
+              parsed.state.isAuthenticated = false;
+              parsed.state.user = null;
+              localStorage.setItem('auth-storage', JSON.stringify(parsed));
+            }
+          }
+        } catch { /* ignore */ }
+        window.location.href = '/login';
+        throw new Error('Session expired');
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Request failed' }));
