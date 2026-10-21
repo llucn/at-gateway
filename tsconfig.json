@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/at-modem" },
+    { "path": "./packages/media" },
+    { "path": "./apps/api" },
+    { "path": "./apps/web" }
+  ]
+}

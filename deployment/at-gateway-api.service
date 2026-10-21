@@ -1,0 +1,35 @@
+[Unit]
+Description=AT Gateway API Service
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=atgw
+Group=atgw
+WorkingDirectory=/opt/at-gateway
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/at-gateway/.env
+ExecStart=/usr/bin/node apps/api/dist/main.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=at-gateway-api
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/at-gateway/storage
+SupplementaryGroups=dialout
+
+# USB device access
+DeviceAllow=/dev/ttyUSB0 rw
+DeviceAllow=/dev/ttyUSB1 rw
+DeviceAllow=/dev/ttyUSB2 rw
+DeviceAllow=/dev/ttyUSB3 rw
+DevicePolicy=closed
+
+[Install]
+WantedBy=multi-user.target

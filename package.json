@@ -1,0 +1,45 @@
+{
+  "name": "at-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Voice & SMS gateway for AT-capable 4G LTE USB dongles (SIMCom A7670C)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@11.5.0",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" build && pnpm -r --filter \"./apps/**\" build",
+    "dev": "pnpm -r --parallel --filter \"./apps/**\" dev",
+    "dev:api": "pnpm --filter @at-gateway/api dev",
+    "dev:web": "pnpm --filter @at-gateway/web dev",
+    "start": "pnpm --filter @at-gateway/api start:prod",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @at-gateway/api test:e2e",
+    "migration:generate": "pnpm --filter @at-gateway/api migration:generate",
+    "migration:run": "pnpm --filter @at-gateway/api migration:run",
+    "migration:revert": "pnpm --filter @at-gateway/api migration:revert",
+    "seed": "pnpm --filter @at-gateway/api seed",
+    "clean": "pnpm -r exec rimraf dist .turbo node_modules/.cache && rimraf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "prettier": "3.5.3",
+    "rimraf": "6.0.1",
+    "typescript": "5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@scarf/scarf",
+      "@swc/core",
+      "esbuild",
+      "serialport"
+    ]
+  }
+}
