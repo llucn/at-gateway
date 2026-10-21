@@ -28,64 +28,128 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      padding: '20px',
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: 420,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: '36px',
+        animation: 'fadeUp 0.35s ease both',
+      }}>
+        {/* Logo / Title */}
+        <div style={{ marginBottom: 28, textAlign: 'center' }}>
+          <div style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 24,
+            fontWeight: 800,
+            color: 'var(--text)',
+            letterSpacing: '0.08em',
+            marginBottom: 6,
+          }}>
             AT Gateway
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Voice & SMS Gateway 管理系统
-          </p>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+            Voice &amp; SMS Gateway 管理系统
+          </div>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {error && (
-            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            <div style={{
+              fontSize: 13,
+              color: 'var(--red)',
+              padding: '8px 12px',
+              background: 'var(--red-dim)',
+              borderRadius: 8,
+            }}>
+              {error}
             </div>
           )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="username" className="sr-only">
-                用户名
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-800 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="用户名"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                密码
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-800 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="密码"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label htmlFor="username" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+              用户名
+            </label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              required
+              placeholder="输入用户名"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{
+                padding: '10px 12px',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                fontSize: 14,
+                background: 'var(--card)',
+                color: 'var(--text)',
+                outline: 'none',
+                fontFamily: 'var(--font-body)',
+                transition: 'border-color 0.15s',
+              }}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+            />
           </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {loading ? '登录中...' : '登录'}
-            </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label htmlFor="password" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+              密码
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              placeholder="输入密码"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                padding: '10px 12px',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                fontSize: 14,
+                background: 'var(--card)',
+                color: 'var(--text)',
+                outline: 'none',
+                fontFamily: 'var(--font-body)',
+                transition: 'border-color 0.15s',
+              }}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+            />
           </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              marginTop: 4,
+              padding: '10px',
+              fontSize: 14,
+              fontWeight: 600,
+              background: loading ? 'var(--muted)' : 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-body)',
+              transition: 'filter 0.15s',
+            }}
+          >
+            {loading ? '登录中...' : '登录'}
+          </button>
         </form>
       </div>
     </div>
