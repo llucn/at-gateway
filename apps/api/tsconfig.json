@@ -3,12 +3,21 @@
   "compilerOptions": {
     "module": "commonjs",
     "moduleResolution": "node",
+    "target": "ES2021",
+    "lib": ["ES2021"],
     "rootDir": "src",
     "outDir": "dist",
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"]
-    }
+    },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": true,
+    "incremental": false,
+    "composite": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test"]
