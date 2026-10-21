@@ -13,23 +13,23 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: '概览',
+    label: 'Overview',
     children: [
-      { label: '仪表盘', path: '/' },
+      { label: 'Dashboard', path: '/' },
     ],
   },
   {
-    label: '通信',
+    label: 'Communications',
     children: [
-      { label: '短信', path: '/sms' },
-      { label: '通话', path: '/calls' },
-      { label: '录音', path: '/recordings' },
+      { label: 'SMS', path: '/sms' },
+      { label: 'Calls', path: '/calls' },
+      { label: 'Recordings', path: '/recordings' },
     ],
   },
   {
-    label: '系统',
+    label: 'System',
     children: [
-      { label: '设置', path: '/settings' },
+      { label: 'Settings', path: '/settings' },
     ],
   },
 ];
@@ -62,7 +62,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         aria-hidden="true"
       />
 
-      <aside className={`sidebar${open ? ' open' : ''}`} aria-label="主导航">
+      <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Main navigation">
         <nav className="nav" role="navigation">
           {NAV_GROUPS.map((group) => {
             const expanded = !!openGroups[group.label];

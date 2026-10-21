@@ -28,11 +28,11 @@ export default function SmsPage() {
       queryClient.invalidateQueries({ queryKey: ['sms'] });
       setPhoneNumber('');
       setContent('');
-      alert('短信发送成功');
+      alert('SMS sent successfully');
     },
     onError: (error: Error) => {
       queryClient.invalidateQueries({ queryKey: ['sms'] });
-      alert(`发送失败: ${error.message}`);
+      alert(`Send failed: ${error.message}`);
     },
   });
 
@@ -47,7 +47,7 @@ export default function SmsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Page header */}
-      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>短信管理</h1>
+      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>SMS</h1>
 
       {/* Send form card */}
       <div className="card">
@@ -61,14 +61,14 @@ export default function SmsPage() {
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
         }}>
-          发送短信
+          Send SMS
         </div>
         <div className="card-body">
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Phone number */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label htmlFor="phone" style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                手机号码
+                Phone Number
               </label>
               <input
                 type="tel"
@@ -99,7 +99,7 @@ export default function SmsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label htmlFor="content" style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  短信内容
+                  Message
                 </label>
                 <span style={{ fontSize: 12, color: charCountColor, fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
                   {content.length} / {MAX_SMS_LENGTH}
@@ -137,7 +137,7 @@ export default function SmsPage() {
                 disabled={sendMutation.isPending}
                 className="btn btn-primary"
               >
-                {sendMutation.isPending ? '发送中…' : '发送'}
+                {sendMutation.isPending ? 'Sending…' : 'Send'}
               </button>
             </div>
           </form>
@@ -156,12 +156,12 @@ export default function SmsPage() {
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
         }}>
-          短信记录
+          SMS History
         </div>
 
         {isLoading ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
-            加载中…
+            Loading…
           </div>
         ) : (
           <>
@@ -175,14 +175,14 @@ export default function SmsPage() {
                           {sms.phoneNumber}
                         </span>
                         <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                          {sms.direction === 'inbound' ? '接收' : '发送'}
+                          {sms.direction === 'inbound' ? 'Received' : 'Sent'}
                         </span>
                       </div>
                       <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>
                         {sms.content}
                       </p>
                       <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                        {new Date(sms.createdAt).toLocaleString('zh-CN')}
+                        {new Date(sms.createdAt).toLocaleString('en-US')}
                       </span>
                     </div>
                     <span className={statusBadgeClass(sms.status)} style={{ flexShrink: 0 }}>
@@ -207,17 +207,17 @@ export default function SmsPage() {
                 disabled={page === 1}
                 className="btn btn-secondary"
               >
-                上一页
+                Previous
               </button>
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                第 {page} 页 / 共 {data?.pagination?.totalPages || 1} 页
+                Page {page} / {data?.pagination?.totalPages || 1}
               </span>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= (data?.pagination?.totalPages || 1)}
                 className="btn btn-secondary"
               >
-                下一页
+                Next
               </button>
             </div>
           </>

@@ -21,12 +21,12 @@ function rssiToBars(rssi: number | null | undefined): number {
 }
 
 function rssiToLabel(rssi: number | null | undefined): string {
-  if (rssi == null) return '未知';
-  if (rssi >= -65) return '极好';
-  if (rssi >= -75) return '良好';
-  if (rssi >= -85) return '一般';
-  if (rssi >= -95) return '较弱';
-  return '极弱';
+  if (rssi == null) return 'Unknown';
+  if (rssi >= -65) return 'Excellent';
+  if (rssi >= -75) return 'Good';
+  if (rssi >= -85) return 'Fair';
+  if (rssi >= -95) return 'Weak';
+  return 'Very Weak';
 }
 
 function rssiToColor(rssi: number | null | undefined): string {
@@ -60,12 +60,12 @@ function SignalIcon({ bars, color }: { bars: number; color: string }) {
 
 function networkLabel(status: string | undefined): string {
   switch (status) {
-    case 'REGISTERED_HOME':    return '已注册（本地）';
-    case 'REGISTERED_ROAMING': return '已注册（漫游）';
-    case 'NOT_REGISTERED':     return '未注册';
-    case 'SEARCHING':          return '搜索中';
-    case 'DENIED':             return '被拒绝';
-    default:                   return status || '未知';
+    case 'REGISTERED_HOME':    return 'Registered (Home)';
+    case 'REGISTERED_ROAMING': return 'Registered (Roaming)';
+    case 'NOT_REGISTERED':     return 'Not Registered';
+    case 'SEARCHING':          return 'Searching';
+    case 'DENIED':             return 'Denied';
+    default:                   return status || 'Unknown';
   }
 }
 
@@ -84,9 +84,9 @@ function formatRevision(rev: string | undefined): string {
 }
 
 function formatLastUpdated(ts: string | undefined): string {
-  if (!ts) return '未知';
+  if (!ts) return 'Unknown';
   try {
-    return new Date(ts).toLocaleString('zh-CN', {
+    return new Date(ts).toLocaleString('en-US', {
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
     });
@@ -188,16 +188,16 @@ export default function DashboardPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Page header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>系统状态</h1>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>System Status</h1>
         {dataUpdatedAt > 0 && (
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            最后刷新：{new Date(dataUpdatedAt).toLocaleTimeString('zh-CN')}
+            Last updated: {new Date(dataUpdatedAt).toLocaleTimeString('en-US')}
           </span>
         )}
       </div>
 
       {isLoading && (
-        <div style={{ color: 'var(--muted)', fontSize: 13, padding: '16px 0' }}>加载中…</div>
+        <div style={{ color: 'var(--muted)', fontSize: 13, padding: '16px 0' }}>Loading…</div>
       )}
 
       {/* Status summary bar */}
@@ -212,29 +212,29 @@ export default function DashboardPage() {
       }}>
         {/* Modem state */}
         <div style={{ background: 'var(--card)', padding: '14px 18px' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>调制解调器</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Modem</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <StatusDot on={status?.state === 'connected'} />
             <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-              {status?.state === 'connected' ? '已连接' : status?.state ?? '—'}
+              {status?.state === 'connected' ? 'Connected' : status?.state ?? '—'}
             </span>
           </div>
         </div>
 
         {/* SIM */}
         <div style={{ background: 'var(--card)', padding: '14px 18px' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>SIM 卡</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>SIM Card</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <StatusDot on={status?.simStatus === 'READY'} />
             <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-              {status?.simStatus === 'READY' ? '正常' : status?.simStatus ?? '—'}
+              {status?.simStatus === 'READY' ? 'Ready' : status?.simStatus ?? '—'}
             </span>
           </div>
         </div>
 
         {/* Network */}
         <div style={{ background: 'var(--card)', padding: '14px 18px' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>网络</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Network</div>
           <span style={{ fontSize: 15, fontWeight: 700, color: networkColor(status?.networkStatus) }}>
             {networkLabel(status?.networkStatus)}
           </span>
@@ -242,7 +242,7 @@ export default function DashboardPage() {
 
         {/* Operator */}
         <div style={{ background: 'var(--card)', padding: '14px 18px' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>运营商</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Operator</div>
           {plmnInfo ? (
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{plmnInfo.operator}</div>
@@ -257,7 +257,7 @@ export default function DashboardPage() {
 
         {/* Signal */}
         <div style={{ background: 'var(--card)', padding: '14px 18px' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>信号强度</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Signal</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <SignalIcon bars={bars} color={sigColor} />
             <div>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
       {/* Detail grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
         {/* Signal quality detail */}
-        <SectionCard title="信号质量">
+        <SectionCard title="Signal Quality">
           <MetaRow label="RSSI" value={rssi != null ? `${rssi} dBm` : 'N/A'} mono />
           <MetaRow label="RSRP" value={rsrp != null ? `${rsrp} dBm` : 'N/A'} mono />
           <MetaRow label="RSRQ" value={rsrq != null ? `${rsrq} dB` : 'N/A'} mono />
@@ -281,17 +281,17 @@ export default function DashboardPage() {
         </SectionCard>
 
         {/* Device info */}
-        <SectionCard title="设备信息">
-          <MetaRow label="制造商" value={status?.manufacturer ?? 'N/A'} />
-          <MetaRow label="型号"   value={status?.model ?? 'N/A'} mono />
-          <MetaRow label="固件"   value={formatRevision(status?.revision)} mono />
+        <SectionCard title="Device Info">
+          <MetaRow label="Manufacturer" value={status?.manufacturer ?? 'N/A'} mono />
+          <MetaRow label="Model"        value={status?.model ?? 'N/A'} mono />
+          <MetaRow label="Firmware"     value={formatRevision(status?.revision)} mono />
         </SectionCard>
 
         {/* SIM / identity */}
-        <SectionCard title="SIM / 标识">
+        <SectionCard title="SIM / Identity">
           <MetaRow label="IMEI" value={status?.imei ?? 'N/A'} mono />
           <MetaRow label="IMSI" value={status?.imsi ?? 'N/A'} mono />
-          <MetaRow label="最后更新" value={formatLastUpdated(status?.lastUpdated)} />
+          <MetaRow label="Last Updated" value={formatLastUpdated(status?.lastUpdated)} mono />
         </SectionCard>
       </div>
     </div>

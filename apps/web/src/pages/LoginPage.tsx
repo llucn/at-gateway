@@ -55,10 +55,10 @@ export default function LoginPage() {
             letterSpacing: '0.08em',
             marginBottom: 6,
           }}>
-            AT Gateway
+            ATG
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-            Voice &amp; SMS Gateway 管理系统
+            Voice &amp; SMS Gateway
           </div>
         </div>
 
@@ -77,14 +77,14 @@ export default function LoginPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label htmlFor="username" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
-              用户名
+              Username
             </label>
             <input
               id="username"
               name="username"
               type="text"
               required
-              placeholder="输入用户名"
+              placeholder="Enter username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               style={{
@@ -105,14 +105,14 @@ export default function LoginPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label htmlFor="password" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
-              密码
+              Password
             </label>
             <input
               id="password"
               name="password"
               type="password"
               required
-              placeholder="输入密码"
+              placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{
@@ -148,7 +148,7 @@ export default function LoginPage() {
               transition: 'filter 0.15s',
             }}
           >
-            {loading ? '登录中...' : '登录'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
