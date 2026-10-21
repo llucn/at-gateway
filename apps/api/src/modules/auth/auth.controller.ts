@@ -1,20 +1,39 @@
 import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from '../../common/guards/local-auth.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 class LoginDto {
+  @ApiProperty({ example: 'admin' })
+  @IsString()
+  @IsNotEmpty()
   username!: string;
+
+  @ApiProperty({ example: 'admin123' })
+  @IsString()
+  @IsNotEmpty()
   password!: string;
 }
 
 class RefreshTokenDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   refreshToken!: string;
 }
 
 class ChangePasswordDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   currentPassword!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
   newPassword!: string;
 }
 
