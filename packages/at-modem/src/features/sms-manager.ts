@@ -23,9 +23,28 @@ export class SmsManager {
     this.setupUrcHandlers();
   }
 
+  // Buffer for the +CMT: header line (PDU mode direct delivery)
+  private cmtHeader: string | null = null;
+
   private setupUrcHandlers(): void {
     this.client.on('urc', (line) => {
-      // Handle incoming SMS notification: +CMTI: "SM",<index>
+      // ── Direct delivery (mt=2): +CMT: [<alpha>],<length> followed by PDU/text ──
+      if (line.startsWith('+CMT:')) {
+        this.cmtHeader = line;
+        return;
+      }
+
+      // Second line after a +CMT: header — this is the actual PDU or text body
+      if (this.cmtHeader !== null) {
+        const header = this.cmtHeader;
+        this.cmtHeader = null;
+        this.handleCmt(header, line).catch((err) => {
+          console.error('Failed to handle +CMT delivery:', err);
+        });
+        return;
+      }
+
+      // ── Stored delivery (mt=1): +CMTI: "SM",<index> ──
       if (line.startsWith('+CMTI:')) {
         const match = line.match(/\+CMTI:\s*"([^"]+)",(\d+)/);
         if (match) {
@@ -34,8 +53,36 @@ export class SmsManager {
             console.error('Failed to read SMS:', err);
           });
         }
+        return;
+      }
+
+      // ── SIM storage full: clear all stored SMS so new ones can arrive ──
+      if (line === '+SMS FULL' || line.startsWith('+SMMEMFULL:')) {
+        console.warn('[SmsManager] SIM SMS storage full — deleting all stored messages');
+        this.deleteAllSms().catch((err) => {
+          console.error('Failed to clear SMS storage:', err);
+        });
       }
     });
+  }
+
+  private async handleCmt(header: string, body: string): Promise<void> {
+    if (this.mode === 'PDU') {
+      // PDU body line
+      const sms = decodeSmsDeliverPdu(body);
+      this.client.emit('urc', `SMS_RECEIVED:${JSON.stringify(sms)}`);
+    } else {
+      // TEXT mode: +CMT: "<number>",,"<timestamp>"
+      const match = header.match(/\+CMT:\s*"([^"]*)"[^,]*,(?:[^,]*),/);
+      const phoneNumber = match?.[1] ?? 'unknown';
+      const sms: SmsDeliver = {
+        phoneNumber,
+        text: body,
+        timestamp: new Date(),
+        encoding: 'gsm7',
+      };
+      this.client.emit('urc', `SMS_RECEIVED:${JSON.stringify(sms)}`);
+    }
   }
 
   async initialize(mode: 'PDU' | 'TEXT' = 'PDU'): Promise<void> {
@@ -45,39 +92,38 @@ export class SmsManager {
     const modeValue = mode === 'PDU' ? 0 : 1;
     await this.client.sendCommand(`AT+CMGF=${modeValue}`);
 
-    // Configure new message indications: deliver to TE, no storage
-    await this.client.sendCommand('AT+CNMI=2,1,0,0,0');
+    // mt=2: deliver new SMS directly to TE via +CMT: URC (bypasses SIM storage,
+    // avoids +SMS FULL issues). Falls back to +CMTI: index notification if the
+    // modem doesn't support direct delivery (handled by setupUrcHandlers).
+    await this.client.sendCommand('AT+CNMI=2,2,0,0,0');
   }
 
   async sendSms(options: SendSmsOptions): Promise<string> {
     if (this.mode === 'PDU') {
       const { pdu, length } = encodeSmsSubmitPdu(options);
 
-      // AT+CMGS=<length>
+      // Send AT+CMGS=<length> and wait for '>' prompt
       await this.client.sendCommand(`AT+CMGS=${length}`, 5000, true);
 
       // Wait briefly for '>' prompt (handled in AtClient)
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Send PDU with Ctrl+Z
-      await this.client.sendData(pdu);
-
-      // Wait for response
-      const response = await this.waitForResponse(30000);
+      // Send PDU + Ctrl+Z through the queue and wait for +CMGS: <mr> or error
+      const response = await this.client.sendDataAndWait(pdu, 30000);
 
       if (!response.success) {
         throw new Error(`SMS send failed: ${response.result}`);
       }
 
-      // Extract message reference from response
-      const match = response.raw.match(/\+CMGS:\s*(\d+)/);
+      // Extract message reference number from +CMGS: <mr>
+      const match = response.result.match(/\+CMGS:\s*(\d+)/);
       return match?.[1] ?? 'unknown';
     } else {
       // TEXT mode
       await this.client.sendCommand(`AT+CMGS="${options.phoneNumber}"`, 5000, true);
       await new Promise((resolve) => setTimeout(resolve, 100));
-      await this.client.sendData(options.text);
-      const response = await this.waitForResponse(30000);
+
+      const response = await this.client.sendDataAndWait(options.text, 30000);
 
       if (!response.success) {
         throw new Error(`SMS send failed: ${response.result}`);
@@ -85,13 +131,6 @@ export class SmsManager {
 
       return 'sent';
     }
-  }
-
-  private async waitForResponse(timeout: number): Promise<any> {
-    // This is simplified; in practice AtClient handles this
-    return new Promise((resolve) => {
-      setTimeout(() => resolve({ success: true, result: 'OK', raw: '+CMGS: 1' }), 100);
-    });
   }
 
   private async readSms(index: number): Promise<void> {

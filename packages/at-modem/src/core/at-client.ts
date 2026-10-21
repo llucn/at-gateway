@@ -12,6 +12,7 @@ export interface AtCommand {
   command: string;
   timeout: number;
   expectPrompt?: boolean; // For commands like AT+CMGS that wait for '>'
+  rawData?: string;       // If set, write rawData+Ctrl+Z instead of command string
   resolve: (response: AtResponse) => void;
   reject: (error: Error) => void;
 }
@@ -96,14 +97,16 @@ export class AtClient extends EventEmitter {
       line === 'NO CARRIER' ||
       line === 'BUSY' ||
       line === 'NO ANSWER' ||
-      line === 'NO DIALTONE'
+      line === 'NO DIALTONE' ||
+      line.startsWith('+CMGS:')
     );
   }
 
   private completeCommand(result: string): void {
     if (!this.currentCommand) return;
 
-    const success = result === 'OK';
+    // +CMGS: <mr> is a success response for SMS submit
+    const success = result === 'OK' || result.startsWith('+CMGS:');
     const response: AtResponse = {
       success,
       lines: this.responseBuffer.slice(0, -1), // Exclude final result
@@ -135,9 +138,13 @@ export class AtClient extends EventEmitter {
     this.currentCommand = cmd;
     this.responseBuffer = [];
 
-    this.log('>>', cmd.command);
+    // Raw-data entries (PDU submit): write the raw bytes + Ctrl+Z,
+    // do NOT write the '<PDU>' label string to the serial port.
+    const writePromise = cmd.rawData !== undefined
+      ? this.transport.write(cmd.rawData + '\x1A')
+      : (this.log('>>', cmd.command), this.transport.write(cmd.command));
 
-    this.transport.write(cmd.command).catch((err) => {
+    writePromise.catch((err) => {
       this.currentCommand?.reject(err);
       this.currentCommand = null;
       this.processQueue();
@@ -145,8 +152,8 @@ export class AtClient extends EventEmitter {
 
     // Set timeout
     this.timeoutHandle = setTimeout(() => {
-      if (this.currentCommand) {
-        this.currentCommand.reject(new Error(`Command timeout: ${cmd.command}`));
+      if (this.currentCommand === cmd) {
+        cmd.reject(new Error(`Command timeout: ${cmd.command}`));
         this.currentCommand = null;
         this.responseBuffer = [];
         this.processQueue();
@@ -174,6 +181,28 @@ export class AtClient extends EventEmitter {
   async sendData(data: string): Promise<void> {
     // Send raw data (for PDU, terminated with Ctrl+Z)
     await this.transport.write(data + '\x1A');
+  }
+  
+  /**
+   * Send raw data (PDU + Ctrl+Z) through the command queue and wait for the
+   * modem's final response (+CMGS: <mr> or ERROR/+CMS ERROR:).
+   * Must be called after AT+CMGS=<length> has returned the '>' prompt.
+   */
+  async sendDataAndWait(data: string, timeout = 30000): Promise<AtResponse> {
+    return new Promise((resolve, reject) => {
+      this.commandQueue.push({
+        command: '<PDU>',  // label only, never written to serial
+        rawData: data,     // actual bytes to write (Ctrl+Z appended by processQueue)
+        timeout,
+        expectPrompt: false,
+        resolve,
+        reject,
+      });
+
+      if (!this.currentCommand) {
+        this.processQueue();
+      }
+    });
   }
 
   async open(): Promise<void> {

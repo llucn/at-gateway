@@ -32,14 +32,5 @@
     "prettier": "3.5.3",
     "rimraf": "6.0.1",
     "typescript": "5.8.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@nestjs/core",
-      "@scarf/scarf",
-      "@swc/core",
-      "esbuild",
-      "serialport"
-    ]
   }
 }

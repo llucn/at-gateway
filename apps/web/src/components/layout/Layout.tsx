@@ -61,7 +61,7 @@ export default function Layout() {
         </button>
 
         {/* System title */}
-        <span className="topbar-brand">AT Gateway</span>
+        <span className="topbar-brand">ATG</span>
 
         <div className="topbar-spacer" />
 

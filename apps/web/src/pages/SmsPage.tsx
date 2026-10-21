@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 
+const MAX_SMS_LENGTH = 160;
+
+function statusBadgeClass(status: string): string {
+  if (status === 'sent' || status === 'received') return 'badge badge-green';
+  if (status === 'failed') return 'badge badge-red';
+  return 'badge badge-amber';
+}
+
 export default function SmsPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [content, setContent] = useState('');
@@ -23,6 +31,7 @@ export default function SmsPage() {
       alert('短信发送成功');
     },
     onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['sms'] });
       alert(`发送失败: ${error.message}`);
     },
   });
@@ -32,103 +41,181 @@ export default function SmsPage() {
     sendMutation.mutate({ phoneNumber, content });
   };
 
-  return (
-    <div className="px-4 py-6 sm:px-0">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">短信管理</h1>
+  const charsLeft = MAX_SMS_LENGTH - content.length;
+  const charCountColor = charsLeft < 0 ? 'var(--red)' : charsLeft < 20 ? 'var(--amber)' : 'var(--muted)';
 
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">发送短信</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              手机号码
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+86xxxxxxxxxxx"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
-            />
-          </div>
-          <div>
-            <label htmlFor="content" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              短信内容
-            </label>
-            <textarea
-              id="content"
-              rows={3}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={sendMutation.isPending}
-            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {sendMutation.isPending ? '发送中...' : '发送'}
-          </button>
-        </form>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Page header */}
+      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>短信管理</h1>
+
+      {/* Send form card */}
+      <div className="card">
+        <div style={{
+          padding: '12px 18px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--card2)',
+          fontSize: 12,
+          fontWeight: 700,
+          color: 'var(--muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+        }}>
+          发送短信
+        </div>
+        <div className="card-body">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Phone number */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label htmlFor="phone" style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                手机号码
+              </label>
+              <input
+                type="tel"
+                id="phone"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="+86xxxxxxxxxxx"
+                required
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  color: 'var(--text)',
+                  fontSize: 13,
+                  padding: '8px 12px',
+                  outline: 'none',
+                  width: '100%',
+                  fontFamily: 'var(--font-mono)',
+                  transition: 'border-color var(--transition-fast)',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+              />
+            </div>
+
+            {/* SMS content */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label htmlFor="content" style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  短信内容
+                </label>
+                <span style={{ fontSize: 12, color: charCountColor, fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
+                  {content.length} / {MAX_SMS_LENGTH}
+                </span>
+              </div>
+              <textarea
+                id="content"
+                rows={3}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                required
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  color: 'var(--text)',
+                  fontSize: 13,
+                  padding: '8px 12px',
+                  outline: 'none',
+                  width: '100%',
+                  resize: 'vertical',
+                  fontFamily: 'var(--font-body)',
+                  lineHeight: 1.6,
+                  transition: 'border-color var(--transition-fast)',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+              />
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={sendMutation.isPending}
+                className="btn btn-primary"
+              >
+                {sendMutation.isPending ? '发送中…' : '发送'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">短信记录</h2>
+      {/* Records card */}
+      <div className="card">
+        <div style={{
+          padding: '12px 18px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--card2)',
+          fontSize: 12,
+          fontWeight: 700,
+          color: 'var(--muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+        }}>
+          短信记录
         </div>
+
         {isLoading ? (
-          <div className="p-6 text-center">加载中...</div>
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+            加载中…
+          </div>
         ) : (
           <>
-            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {data?.data?.map((sms: any) => (
-                <li key={sms.id} className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {sms.direction === 'inbound' ? '接收' : '发送'}: {sms.phoneNumber}
-                        </p>
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            sms.status === 'sent' || sms.status === 'received'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : sms.status === 'failed'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          }`}
-                        >
-                          {sms.status}
+                <li key={sms.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
+                          {sms.phoneNumber}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                          {sms.direction === 'inbound' ? '接收' : '发送'}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{sms.content}</p>
-                      <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                        {new Date(sms.createdAt).toLocaleString('zh-CN')}
+                      <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>
+                        {sms.content}
                       </p>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        {new Date(sms.createdAt).toLocaleString('zh-CN')}
+                      </span>
                     </div>
+                    <span className={statusBadgeClass(sms.status)} style={{ flexShrink: 0 }}>
+                      {sms.status}
+                    </span>
                   </div>
                 </li>
               ))}
             </ul>
-            <div className="bg-gray-50 dark:bg-gray-900 px-6 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+
+            {/* Pagination */}
+            <div style={{
+              padding: '10px 20px',
+              background: 'var(--card2)',
+              borderTop: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                className="btn btn-secondary"
               >
                 上一页
               </button>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                 第 {page} 页 / 共 {data?.pagination?.totalPages || 1} 页
               </span>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= (data?.pagination?.totalPages || 1)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                className="btn btn-secondary"
               >
                 下一页
               </button>
