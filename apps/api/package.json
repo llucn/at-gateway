@@ -10,10 +10,10 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "migration:generate": "typeorm migration:generate -d src/config/typeorm.config.ts",
-    "migration:run": "typeorm migration:run -d src/config/typeorm.config.ts",
-    "migration:revert": "typeorm migration:revert -d src/config/typeorm.config.ts",
-    "seed": "ts-node src/database/seed.ts"
+    "migration:generate": "ts-node --project tsconfig.cli.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/config/typeorm.config.ts",
+    "migration:run": "ts-node --project tsconfig.cli.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/config/typeorm.config.ts",
+    "migration:revert": "ts-node --project tsconfig.cli.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/config/typeorm.config.ts",
+    "seed": "ts-node --project tsconfig.cli.json -r tsconfig-paths/register src/database/seed.ts"
   },
   "dependencies": {
     "@at-gateway/at-modem": "workspace:*",
@@ -57,6 +57,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3"
   }
 }
