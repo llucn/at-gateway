@@ -23,6 +23,9 @@ export class WebhookDelivery {
   @Column({ type: 'text' })
   payload!: string; // JSON string
 
+  @Column({ type: 'json', nullable: true })
+  metadata?: any;
+
   @Column({ type: 'int', default: 0 })
   attempts!: number;
 

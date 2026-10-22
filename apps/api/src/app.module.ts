@@ -49,7 +49,10 @@ import { HealthModule } from './modules/health/health.module';
         migrationsRun: config.get('DB_MIGRATIONS_RUN'),
       }),
     }),
-    EventEmitterModule.forRoot(),
+    EventEmitterModule.forRoot({
+      wildcard: true,
+      delimiter: '.',
+    }),
     ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
