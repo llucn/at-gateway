@@ -32,8 +32,9 @@ export function encodeSmsSubmitPdu(sms: SmsSubmit): { pdu: string; length: numbe
   // SMSC (Service Center Address)
   const smscPdu = sms.smsc ? encodeSmsc(sms.smsc) : '00';
 
-  // PDU Type: SMS-SUBMIT
-  const pduType = 0x01; // TP-MTI=01 (SMS-SUBMIT), no validity, no reply path
+  // PDU Type: SMS-SUBMIT without validity period
+  // Some modems don't support VP field properly
+  const pduType = 0x01; // 0000 0001 = SMS-SUBMIT without VP
 
   // Message Reference (let modem assign)
   const mr = 0x00;
@@ -59,7 +60,7 @@ export function encodeSmsSubmitPdu(sms: SmsSubmit): { pdu: string; length: numbe
     udl = userData.length; // octets
   }
 
-  // Assemble PDU
+  // Assemble PDU (without VP field)
   const pdu =
     smscPdu +
     pduType.toString(16).padStart(2, '0').toUpperCase() +

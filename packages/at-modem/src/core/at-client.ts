@@ -116,7 +116,8 @@ export class AtClient extends EventEmitter {
 
     // Handle prompt for data commands (e.g., SMS send)
     if (this.currentCommand.expectPrompt && line === '>') {
-      // Signal prompt received; caller should send data
+      // Treat '>' as a success response for prompt-expecting commands
+      this.completeCommand('>');
       return;
     }
 
@@ -132,6 +133,7 @@ export class AtClient extends EventEmitter {
   private isFinalResult(line: string): boolean {
     return (
       line === 'OK' ||
+      line === '>' ||
       line === 'ERROR' ||
       line.startsWith('+CME ERROR:') ||
       line.startsWith('+CMS ERROR:') ||
@@ -147,7 +149,8 @@ export class AtClient extends EventEmitter {
     if (!this.currentCommand) return;
 
     // +CMGS: <mr> is a success response for SMS submit
-    const success = result === 'OK' || result.startsWith('+CMGS:');
+    // '>' is a success response for prompt-expecting commands (AT+CMGS=<len>)
+    const success = result === 'OK' || result === '>' || result.startsWith('+CMGS:');
     const response: AtResponse = {
       success,
       lines: this.responseBuffer.slice(0, -1), // Exclude final result

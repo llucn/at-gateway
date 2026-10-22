@@ -105,10 +105,7 @@ export class SmsManager {
       // Send AT+CMGS=<length> and wait for '>' prompt
       await this.client.sendCommand(`AT+CMGS=${length}`, 5000, true);
 
-      // Wait briefly for '>' prompt (handled in AtClient)
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Send PDU + Ctrl+Z through the queue and wait for +CMGS: <mr> or error
+      // Send PDU + Ctrl+Z immediately (no delay needed - queued after '>' prompt)
       const response = await this.client.sendDataAndWait(pdu, 30000);
 
       if (!response.success) {

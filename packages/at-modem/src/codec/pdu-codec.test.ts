@@ -53,7 +53,7 @@ describe('encodeSmsSubmitPdu', () => {
 
     // DCS 08, UDL 04 (octets), UD 4F60 597D
     expect(pdu).toBe('00' + '01' + '00' + '0C91442143658709' + '00' + '08' + '04' + '4F60597D');
-    expect(length).toBe(17); // type + MR + DA(8) + PID + DCS + UDL + 4 octets
+    expect(length).toBe(17);
   });
 
   it('encodes a Chinese sentence with SMSC', () => {
@@ -110,7 +110,7 @@ describe('encodeSmsSubmitPdu', () => {
     const { pdu } = encodeSmsSubmitPdu({ phoneNumber: '+441234567890', text });
 
     // after SMSC(00) type(01) mr(00) DA(16 hex chars) pid(00) dcs(00) comes UDL
-    const udl = parseInt(pdu.slice(2 + 2 + 2 + 16 + 4, 2 + 2 + 2 + 16 + 6), 16);
+    const udl = parseInt(pdu.slice(2 + 2 + 2 + 16 + 2 + 2, 2 + 2 + 2 + 16 + 2 + 2 + 2), 16);
     expect(udl).toBe(text.length);
   });
 
@@ -118,10 +118,10 @@ describe('encodeSmsSubmitPdu', () => {
     const text = 'Price: 5€ [net]'; // € [ ] are each escaped with 0x1B
     const { pdu } = encodeSmsSubmitPdu({ phoneNumber: '+441234567890', text });
 
-    const udl = parseInt(pdu.slice(2 + 2 + 2 + 16 + 4, 2 + 2 + 2 + 16 + 6), 16);
+    const udl = parseInt(pdu.slice(2 + 2 + 2 + 16 + 2 + 2, 2 + 2 + 2 + 16 + 2 + 2 + 2), 16);
     expect(udl).toBe(text.length + 3);
     // packed user data must hold exactly ceil(udl * 7 / 8) octets
-    const udOctets = (pdu.length - (2 + 2 + 2 + 16 + 6)) / 2;
+    const udOctets = (pdu.length - (2 + 2 + 2 + 16 + 2 + 2 + 2)) / 2;
     expect(udOctets).toBe(Math.ceil((udl * 7) / 8));
   });
 
@@ -207,8 +207,12 @@ describe('decodeSmsDeliverPdu', () => {
 describe('encode → decode round trip (Chinese)', () => {
   it.each(['你好', '你好，世界！', '验证码：123456，请勿泄露。', 'Hi 你好', '会议改到下午3:30 😀'])('round-trips %j', (text) => {
     const { pdu } = encodeSmsSubmitPdu({ phoneNumber: '+441234567890', text });
+    // SUBMIT: 00 | 01 | 00 | DA(16) | PID | DCS | UDL | UD
+    // DELIVER: 00 | 04 | OA(16) | PID | DCS | SCTS(14) | UDL | UD
     const da = pdu.slice(6, 6 + 16);
-    const deliver = '00' + '04' + da + pdu.slice(6 + 16, 6 + 16 + 4) + '52012111223300' + pdu.slice(6 + 16 + 4);
+    const pidDcs = pdu.slice(6 + 16, 6 + 16 + 4); // PID + DCS
+    const udlAndUd = pdu.slice(6 + 16 + 4); // UDL + UD
+    const deliver = '00' + '04' + da + pidDcs + '52012111223300' + udlAndUd;
     const decoded = decodeSmsDeliverPdu(deliver);
 
     expect(decoded.text).toBe(text);
@@ -219,12 +223,13 @@ describe('encode → decode round trip (Chinese)', () => {
 describe('encode → decode round trip (English)', () => {
   /** Turn a SUBMIT PDU into a DELIVER PDU by reusing the DA as the OA. */
   function submitToDeliver(submitPdu: string): string {
-    // 00 | 01 | 00 | DA(16) | PID | DCS | UDL | UD   — numbers here are 12 digits
+    // SUBMIT: 00 | 01 | 00 | DA(16) | PID | DCS | UDL | UD
+    // DELIVER: 00 | 04 | OA(16) | PID | DCS | SCTS(14) | UDL | UD
     const da = submitPdu.slice(6, 6 + 16);
     const rest = submitPdu.slice(6 + 16); // PID DCS UDL UD
     const pid = rest.slice(0, 2);
     const dcs = rest.slice(2, 4);
-    const udlAndUd = rest.slice(4);
+    const udlAndUd = rest.slice(4); // UDL + UD
     return '00' + '04' + da + pid + dcs + '52012111223300' + udlAndUd;
   }
 
