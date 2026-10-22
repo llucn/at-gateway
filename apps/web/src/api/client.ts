@@ -218,6 +218,24 @@ class ApiClient {
       body: JSON.stringify(updates),
     });
   }
+
+  // Credentials
+  async createCredential(expiryDays: number | null, name?: string) {
+    return this.request<any>('/credentials', {
+      method: 'POST',
+      body: JSON.stringify({ expiryDays, name }),
+    });
+  }
+
+  async listCredentials() {
+    return this.request<any>('/credentials');
+  }
+
+  async revokeCredential(id: string) {
+    return this.request<any>(`/credentials/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

@@ -7,6 +7,7 @@ import SmsPage from './pages/SmsPage';
 import CallsPage from './pages/CallsPage';
 import RecordingsPage from './pages/RecordingsPage';
 import SettingsPage from './pages/SettingsPage';
+import CredentialsPage from './pages/CredentialsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="calls" element={<CallsPage />} />
         <Route path="recordings" element={<RecordingsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="credentials" element={<CredentialsPage />} />
       </Route>
     </Routes>
   );

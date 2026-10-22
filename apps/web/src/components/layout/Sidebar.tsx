@@ -30,6 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'System',
     children: [
       { label: 'Settings', path: '/settings' },
+      { label: 'Credentials', path: '/credentials' },
     ],
   },
 ];

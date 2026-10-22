@@ -13,6 +13,7 @@ import { CallRecord } from './entities/call-record.entity';
 import { Recording } from './entities/recording.entity';
 import { WebhookDelivery } from './entities/webhook-delivery.entity';
 import { ModemEvent } from './entities/modem-event.entity';
+import { ApiCredential } from './entities/api-credential.entity';
 
 // Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -27,6 +28,8 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { MediaModule } from './modules/media/media.module';
 import { EventsModule } from './modules/events/events.module';
 import { HealthModule } from './modules/health/health.module';
+import { CredentialsModule } from './modules/credentials/credentials.module';
+import { TwilioModule } from './modules/twilio/twilio.module';
 
 @Module({
   imports: [
@@ -43,7 +46,7 @@ import { HealthModule } from './modules/health/health.module';
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
-        entities: [User, Setting, SmsMessage, CallRecord, Recording, WebhookDelivery, ModemEvent],
+        entities: [User, Setting, SmsMessage, CallRecord, Recording, WebhookDelivery, ModemEvent, ApiCredential],
         synchronize: config.get('DB_SYNCHRONIZE'),
         logging: config.get('DB_LOGGING'),
         migrationsRun: config.get('DB_MIGRATIONS_RUN'),
@@ -66,6 +69,8 @@ import { HealthModule } from './modules/health/health.module';
     MediaModule,
     EventsModule,
     HealthModule,
+    CredentialsModule,
+    TwilioModule,
   ],
 })
 export class AppModule {}
