@@ -17,10 +17,19 @@ export class WebhooksService {
     private settingsService: SettingsService,
   ) {}
 
-  @OnEvent('webhook.**')
-  async handleWebhookEvent(payload: any, eventType?: string) {
-    const event = eventType || 'unknown';
-    
+  @OnEvent('webhook.sms.received')
+  async handleSmsWebhook(payload: any) {
+    await this.handleWebhookEvent(payload, 'webhook.sms.received');
+  }
+
+  @OnEvent('webhook.call.**')
+  async handleCallWebhook(payload: any) {
+    await this.handleWebhookEvent(payload, 'webhook.call.ended');
+  }
+
+  private async handleWebhookEvent(payload: any, eventType: string) {
+    const event = eventType;
+
     let url: string | null = null;
     if (event.includes('sms')) {
       url = await this.settingsService.get('webhook.smsUrl');
@@ -30,10 +39,30 @@ export class WebhooksService {
 
     if (!url) return;
 
+    // For SMS webhooks, format as Twilio-compatible form data
+    let payloadString: string;
+    let metadata: any = {};
+
+    if (event.includes('sms')) {
+      const params = new URLSearchParams({
+        From: payload.phoneNumber || '',
+        To: '',
+        Body: payload.content || '',
+        MessageSid: payload.id || '',
+      });
+      payloadString = params.toString();
+      metadata = { contentType: 'application/x-www-form-urlencoded' };
+    } else {
+      // For other webhooks (calls, etc.), keep JSON format
+      payloadString = JSON.stringify(payload);
+      metadata = { contentType: 'application/json' };
+    }
+
     const delivery = this.webhookRepo.create({
       eventType: event,
       url,
-      payload: JSON.stringify(payload),
+      payload: payloadString,
+      metadata,
       status: 'pending',
       nextRetryAt: new Date(),
     });
@@ -62,10 +91,12 @@ export class WebhooksService {
       const timestamp = Date.now().toString();
       const signature = this.generateSignature(delivery.payload, secret || '', timestamp);
 
+      const contentType = delivery.metadata?.contentType || 'application/json';
+
       const response = await fetch(delivery.url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': contentType,
           'X-Gateway-Signature': signature,
           'X-Gateway-Timestamp': timestamp,
           'X-Gateway-Event': delivery.eventType,
