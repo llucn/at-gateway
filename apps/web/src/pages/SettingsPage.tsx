@@ -22,10 +22,10 @@ export default function SettingsPage() {
     mutationFn: (updates: Record<string, string>) => apiClient.updateSettings(updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
-      alert('设置已保存');
+      alert('Settings saved');
     },
     onError: (error: Error) => {
-      alert(`保存失败: ${error.message}`);
+      alert(`Save failed: ${error.message}`);
     },
   });
 
@@ -39,20 +39,20 @@ export default function SettingsPage() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">加载中...</div>;
+    return <div className="text-center py-8">Loading…</div>;
   }
 
   return (
     <div className="px-4 py-6 sm:px-0">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">系统设置</h1>
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">System Settings</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Webhook 配置</h2>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Webhook Configuration</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                短信 Webhook URL
+                SMS Webhook URL
               </label>
               <input
                 type="url"
@@ -64,7 +64,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                通话 Webhook URL
+                Call Webhook URL
               </label>
               <input
                 type="url"
@@ -76,13 +76,13 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Webhook 密钥
+                Webhook Secret
               </label>
               <input
                 type="text"
                 value={settings['webhook.secret'] || ''}
                 onChange={(e) => handleChange('webhook.secret', e.target.value)}
-                placeholder="用于签名验证的密钥"
+                placeholder="Secret key for signature verification"
                 className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
               />
             </div>
@@ -95,7 +95,7 @@ export default function SettingsPage() {
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
               <label htmlFor="webhook-enabled" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                启用 Webhook
+                Enable Webhook
               </label>
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function SettingsPage() {
             disabled={updateMutation.isPending}
             className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            {updateMutation.isPending ? '保存中...' : '保存设置'}
+            {updateMutation.isPending ? 'Saving…' : 'Save Settings'}
           </button>
         </div>
       </form>

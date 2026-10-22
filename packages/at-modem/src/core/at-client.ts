@@ -12,6 +12,7 @@ export interface AtCommand {
   command: string;
   timeout: number;
   expectPrompt?: boolean; // For commands like AT+CMGS that wait for '>'
+  rawData?: string;       // If set, write rawData+Ctrl+Z instead of command string
   resolve: (response: AtResponse) => void;
   reject: (error: Error) => void;
 }
@@ -44,6 +45,8 @@ export class AtClient extends EventEmitter {
   private commandTimeout: number;
   private timeoutHandle: NodeJS.Timeout | null = null;
   private debug: boolean;
+  /** True when the next line is the PDU/text body of a +CMT: URC. */
+  private pendingUrcBody = false;
 
   constructor(options: AtClientOptions) {
     super();
@@ -63,8 +66,47 @@ export class AtClient extends EventEmitter {
     }
   }
 
+  /**
+   * Returns true for lines that are always URCs regardless of whether a command
+   * is active. These must never be absorbed into responseBuffer.
+   */
+  private isUnsolicitedLine(line: string): boolean {
+    return (
+      line.startsWith('+CMT:') ||
+      line.startsWith('+CMTI:') ||
+      line === '+SMS FULL' ||
+      line.startsWith('+SMMEMFULL:') ||
+      line.startsWith('+CRING:') ||
+      line.startsWith('+CLIP:') ||
+      line.startsWith('+CREG:') ||
+      line.startsWith('+CGREG:') ||
+      line.startsWith('+CEREG:') ||
+      line.startsWith('+CUSD:') ||
+      line.startsWith('+CSSI:') ||
+      line.startsWith('+CSSU:')
+    );
+  }
+
   private handleLine(line: string): void {
     this.log('<<', line);
+
+    // +CMT: is a two-line URC: the header line followed by a raw PDU/text body.
+    // Both lines must reach URC listeners even when a command is active.
+    if (this.pendingUrcBody) {
+      this.pendingUrcBody = false;
+      this.emit('urc', line);
+      return;
+    }
+
+    // Any recognised unsolicited prefix always bypasses the command buffer.
+    if (this.isUnsolicitedLine(line)) {
+      if (line.startsWith('+CMT:')) {
+        // Next line is the PDU/text body — flag it so it also bypasses the buffer.
+        this.pendingUrcBody = true;
+      }
+      this.emit('urc', line);
+      return;
+    }
 
     // If no command is active, treat as URC (unsolicited result code)
     if (!this.currentCommand) {
@@ -74,7 +116,8 @@ export class AtClient extends EventEmitter {
 
     // Handle prompt for data commands (e.g., SMS send)
     if (this.currentCommand.expectPrompt && line === '>') {
-      // Signal prompt received; caller should send data
+      // Treat '>' as a success response for prompt-expecting commands
+      this.completeCommand('>');
       return;
     }
 
@@ -90,20 +133,24 @@ export class AtClient extends EventEmitter {
   private isFinalResult(line: string): boolean {
     return (
       line === 'OK' ||
+      line === '>' ||
       line === 'ERROR' ||
       line.startsWith('+CME ERROR:') ||
       line.startsWith('+CMS ERROR:') ||
       line === 'NO CARRIER' ||
       line === 'BUSY' ||
       line === 'NO ANSWER' ||
-      line === 'NO DIALTONE'
+      line === 'NO DIALTONE' ||
+      line.startsWith('+CMGS:')
     );
   }
 
   private completeCommand(result: string): void {
     if (!this.currentCommand) return;
 
-    const success = result === 'OK';
+    // +CMGS: <mr> is a success response for SMS submit
+    // '>' is a success response for prompt-expecting commands (AT+CMGS=<len>)
+    const success = result === 'OK' || result === '>' || result.startsWith('+CMGS:');
     const response: AtResponse = {
       success,
       lines: this.responseBuffer.slice(0, -1), // Exclude final result
@@ -135,9 +182,13 @@ export class AtClient extends EventEmitter {
     this.currentCommand = cmd;
     this.responseBuffer = [];
 
-    this.log('>>', cmd.command);
+    // Raw-data entries (PDU submit): write the raw bytes + Ctrl+Z,
+    // do NOT write the '<PDU>' label string to the serial port.
+    const writePromise = cmd.rawData !== undefined
+      ? this.transport.write(cmd.rawData + '\x1A')
+      : (this.log('>>', cmd.command), this.transport.write(cmd.command));
 
-    this.transport.write(cmd.command).catch((err) => {
+    writePromise.catch((err) => {
       this.currentCommand?.reject(err);
       this.currentCommand = null;
       this.processQueue();
@@ -145,8 +196,8 @@ export class AtClient extends EventEmitter {
 
     // Set timeout
     this.timeoutHandle = setTimeout(() => {
-      if (this.currentCommand) {
-        this.currentCommand.reject(new Error(`Command timeout: ${cmd.command}`));
+      if (this.currentCommand === cmd) {
+        cmd.reject(new Error(`Command timeout: ${cmd.command}`));
         this.currentCommand = null;
         this.responseBuffer = [];
         this.processQueue();
@@ -174,6 +225,28 @@ export class AtClient extends EventEmitter {
   async sendData(data: string): Promise<void> {
     // Send raw data (for PDU, terminated with Ctrl+Z)
     await this.transport.write(data + '\x1A');
+  }
+  
+  /**
+   * Send raw data (PDU + Ctrl+Z) through the command queue and wait for the
+   * modem's final response (+CMGS: <mr> or ERROR/+CMS ERROR:).
+   * Must be called after AT+CMGS=<length> has returned the '>' prompt.
+   */
+  async sendDataAndWait(data: string, timeout = 30000): Promise<AtResponse> {
+    return new Promise((resolve, reject) => {
+      this.commandQueue.push({
+        command: '<PDU>',  // label only, never written to serial
+        rawData: data,     // actual bytes to write (Ctrl+Z appended by processQueue)
+        timeout,
+        expectPrompt: false,
+        resolve,
+        reject,
+      });
+
+      if (!this.currentCommand) {
+        this.processQueue();
+      }
+    });
   }
 
   async open(): Promise<void> {

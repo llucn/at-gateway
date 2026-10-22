@@ -1,6 +1,7 @@
 // SMS PDU encoder/decoder
 import {
   encodeGsm7,
+  countGsm7Septets,
   decodeGsm7,
   encodeUcs2,
   decodeUcs2,
@@ -31,8 +32,9 @@ export function encodeSmsSubmitPdu(sms: SmsSubmit): { pdu: string; length: numbe
   // SMSC (Service Center Address)
   const smscPdu = sms.smsc ? encodeSmsc(sms.smsc) : '00';
 
-  // PDU Type: SMS-SUBMIT
-  const pduType = 0x01; // TP-MTI=01 (SMS-SUBMIT), no validity, no reply path
+  // PDU Type: SMS-SUBMIT without validity period
+  // Some modems don't support VP field properly
+  const pduType = 0x01; // 0000 0001 = SMS-SUBMIT without VP
 
   // Message Reference (let modem assign)
   const mr = 0x00;
@@ -52,13 +54,13 @@ export function encodeSmsSubmitPdu(sms: SmsSubmit): { pdu: string; length: numbe
 
   if (useGsm7) {
     userData = encodeGsm7(sms.text);
-    udl = sms.text.length; // septets
+    udl = countGsm7Septets(sms.text); // septets (extended chars take two)
   } else {
     userData = encodeUcs2(sms.text);
     udl = userData.length; // octets
   }
 
-  // Assemble PDU
+  // Assemble PDU (without VP field)
   const pdu =
     smscPdu +
     pduType.toString(16).padStart(2, '0').toUpperCase() +
@@ -99,7 +101,7 @@ export function decodeSmsDeliverPdu(pdu: string): SmsDeliver {
   const oaHex = pdu.slice(offset, offset + oaDigits);
   offset += oaDigits;
 
-  const phoneNumber = (oaType & 0x70) === 0x50 ? '+' + decodePhoneNumber(oaHex) : decodePhoneNumber(oaHex);
+  const phoneNumber = (oaType & 0x70) === 0x10 ? '+' + decodePhoneNumber(oaHex) : decodePhoneNumber(oaHex);
 
   // PID
   offset += 2;
@@ -138,7 +140,7 @@ function encodeSmsc(number: string): string {
 function decodeSmsc(hex: string): string {
   const type = parseInt(hex.slice(0, 2), 16);
   const digits = decodePhoneNumber(hex.slice(2));
-  return (type & 0x70) === 0x50 ? '+' + digits : digits;
+  return (type & 0x70) === 0x10 ? '+' + digits : digits;
 }
 
 function encodeAddress(number: string): string {

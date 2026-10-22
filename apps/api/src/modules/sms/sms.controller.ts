@@ -1,10 +1,19 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SmsService } from './sms.service';
 
 class SendSmsDto {
+  @ApiProperty({ example: '+8613075585072' })
+  @IsString()
+  @IsNotEmpty()
   phoneNumber!: string;
+
+  @ApiProperty({ example: 'Hello world', maxLength: 1600 })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1600)
   content!: string;
 }
 

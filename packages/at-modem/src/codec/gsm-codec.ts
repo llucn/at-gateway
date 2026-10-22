@@ -47,6 +47,15 @@ export function isGsm7Compatible(text: string): boolean {
   return true;
 }
 
+/** Number of septets encodeGsm7 produces for the text (extended characters take two). */
+export function countGsm7Septets(text: string): number {
+  let count = 0;
+  for (const char of text) {
+    count += GSM7_EXTENDED_ENCODE.has(char) ? 2 : 1;
+  }
+  return count;
+}
+
 export function encodeGsm7(text: string): Buffer {
   const septets: number[] = [];
 
@@ -61,21 +70,22 @@ export function encodeGsm7(text: string): Buffer {
     }
   }
 
-  // Pack 7-bit septets into octets
+  // Pack 7-bit septets into octets, least significant bits first
   const octets: number[] = [];
-  let carry = 0;
-  let carryBits = 0;
+  let acc = 0;
+  let accBits = 0;
 
   for (const septet of septets) {
-    octets.push(((septet << carryBits) | carry) & 0xff);
-    carry = septet >> (7 - carryBits);
-    carryBits++;
-
-    if (carryBits === 7) {
-      octets.push(carry);
-      carry = 0;
-      carryBits = 0;
+    acc |= septet << accBits;
+    accBits += 7;
+    while (accBits >= 8) {
+      octets.push(acc & 0xff);
+      acc >>= 8;
+      accBits -= 8;
     }
+  }
+  if (accBits > 0) {
+    octets.push(acc & 0xff);
   }
 
   return Buffer.from(octets);
@@ -83,21 +93,16 @@ export function encodeGsm7(text: string): Buffer {
 
 export function decodeGsm7(buffer: Buffer, length: number): string {
   const septets: number[] = [];
-  let carry = 0;
-  let carryBits = 0;
+  let acc = 0;
+  let accBits = 0;
 
   for (let i = 0; i < buffer.length && septets.length < length; i++) {
-    const octet = buffer[i]!;
-    septets.push(((octet << carryBits) | carry) & 0x7f);
-    carry = octet >> (7 - carryBits);
-    carryBits++;
-
-    if (carryBits === 7) {
-      if (septets.length < length) {
-        septets.push(carry);
-      }
-      carry = 0;
-      carryBits = 0;
+    acc |= buffer[i]! << accBits;
+    accBits += 8;
+    while (accBits >= 7 && septets.length < length) {
+      septets.push(acc & 0x7f);
+      acc >>= 7;
+      accBits -= 7;
     }
   }
 
@@ -116,12 +121,14 @@ export function decodeGsm7(buffer: Buffer, length: number): string {
   return result;
 }
 
+// SMS UCS-2 (UTF-16) is big-endian on the wire; Node's 'ucs2' is little-endian.
 export function encodeUcs2(text: string): Buffer {
-  return Buffer.from(text, 'ucs2');
+  return Buffer.from(text, 'utf16le').swap16();
 }
 
 export function decodeUcs2(buffer: Buffer): string {
-  return buffer.toString('ucs2');
+  const even = buffer.subarray(0, buffer.length - (buffer.length % 2));
+  return Buffer.from(even).swap16().toString('utf16le');
 }
 
 // Swap nibbles for phone number encoding (BCD)

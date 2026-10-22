@@ -41,7 +41,7 @@ export default function Layout() {
         {/* Hamburger — visible only below 1024px */}
         <button
           className="topbar-menu-btn"
-          aria-label={sidebarOpen ? '关闭菜单' : '打开菜单'}
+          aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           onClick={() => setSidebarOpen((v) => !v)}
         >
           {sidebarOpen ? (
@@ -61,7 +61,7 @@ export default function Layout() {
         </button>
 
         {/* System title */}
-        <span className="topbar-brand">AT Gateway</span>
+        <span className="topbar-brand">ATG</span>
 
         <div className="topbar-spacer" />
 
@@ -69,9 +69,9 @@ export default function Layout() {
           {/* Theme toggle */}
           <button
             className="theme-toggle-btn"
-            aria-label={theme === 'dark' ? '切换浅色主题' : '切换深色主题'}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             onClick={toggleTheme}
-            title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? (
               // Sun icon
@@ -103,7 +103,7 @@ export default function Layout() {
               className="topbar-avatar"
               role="button"
               tabIndex={0}
-              aria-label="用户菜单"
+              aria-label="User menu"
               onClick={() => setAvatarMenuOpen((v) => !v)}
               onKeyDown={(e) => e.key === 'Enter' && setAvatarMenuOpen((v) => !v)}
             >
