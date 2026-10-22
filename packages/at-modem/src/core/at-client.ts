@@ -45,6 +45,8 @@ export class AtClient extends EventEmitter {
   private commandTimeout: number;
   private timeoutHandle: NodeJS.Timeout | null = null;
   private debug: boolean;
+  /** True when the next line is the PDU/text body of a +CMT: URC. */
+  private pendingUrcBody = false;
 
   constructor(options: AtClientOptions) {
     super();
@@ -64,8 +66,47 @@ export class AtClient extends EventEmitter {
     }
   }
 
+  /**
+   * Returns true for lines that are always URCs regardless of whether a command
+   * is active. These must never be absorbed into responseBuffer.
+   */
+  private isUnsolicitedLine(line: string): boolean {
+    return (
+      line.startsWith('+CMT:') ||
+      line.startsWith('+CMTI:') ||
+      line === '+SMS FULL' ||
+      line.startsWith('+SMMEMFULL:') ||
+      line.startsWith('+CRING:') ||
+      line.startsWith('+CLIP:') ||
+      line.startsWith('+CREG:') ||
+      line.startsWith('+CGREG:') ||
+      line.startsWith('+CEREG:') ||
+      line.startsWith('+CUSD:') ||
+      line.startsWith('+CSSI:') ||
+      line.startsWith('+CSSU:')
+    );
+  }
+
   private handleLine(line: string): void {
     this.log('<<', line);
+
+    // +CMT: is a two-line URC: the header line followed by a raw PDU/text body.
+    // Both lines must reach URC listeners even when a command is active.
+    if (this.pendingUrcBody) {
+      this.pendingUrcBody = false;
+      this.emit('urc', line);
+      return;
+    }
+
+    // Any recognised unsolicited prefix always bypasses the command buffer.
+    if (this.isUnsolicitedLine(line)) {
+      if (line.startsWith('+CMT:')) {
+        // Next line is the PDU/text body — flag it so it also bypasses the buffer.
+        this.pendingUrcBody = true;
+      }
+      this.emit('urc', line);
+      return;
+    }
 
     // If no command is active, treat as URC (unsolicited result code)
     if (!this.currentCommand) {

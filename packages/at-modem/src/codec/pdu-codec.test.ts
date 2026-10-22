@@ -190,6 +190,13 @@ describe('decodeSmsDeliverPdu', () => {
     expect(result.text).toBe('Hi 你好');
   });
 
+  it('decodes a real message from PDU', () => {
+    const body = '09A164000339941002F00414A1018618557800005468030008620122909205237C3010963F91CC4E91301160A876849A8C8BC17801662FFF1A003700340034003700370038FF0C60A86B6357288FDB884C201C77ED4FE1767B5F55201DFF0C67096548671F003100355206949F30028BF752FF6CC497327ED94EFB4F554EBA30025982975E672C4EBA64CD4F5CFF0C8BF75FFD7565672C77ED4FE13002';
+    const sms = decodeSmsDeliverPdu(body);
+
+    expect(sms.text).toBe('【阿里云】您的验证码是：744778，您正在进行“短信登录”，有效期15分钟。请勿泄露给任何人。如非本人操作，请忽略本短信。');
+  });
+
   it('decodes a national (non-international) sender without a plus sign', () => {
     const result = decodeSmsDeliverPdu(deliverPdu({ oa: '0A812143658709', ud: HELLO_UD, udl: '05' }));
 

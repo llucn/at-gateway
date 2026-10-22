@@ -19,6 +19,7 @@ export default function SmsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['sms', page],
     queryFn: () => apiClient.listSms({ page, limit: 20 }),
+    refetchInterval: 10000,
   });
 
   const sendMutation = useMutation({
