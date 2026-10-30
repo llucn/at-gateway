@@ -9,11 +9,13 @@ A full-stack Voice & SMS gateway for 4G LTE USB dongles (SIMCom A7670C and compa
 ### 核心功能
 - **短信收发**：完整的 SMS 收发功能，支持 GSM7 和 UCS-2 编码，PDU 模式
 - **语音通话**：拨打和接听电话，支持 TTS 语音播放和 STT 转录
-- **Webhook 通知**：实时推送 SMS 和通话事件到外部服务
+- **Webhook 通知**：实时推送 SMS 和通话事件到外部服务，支持 HMAC 签名和自动重试
+- **API 凭证管理**：创建和管理 API Key/Secret，支持过期控制和撤销
+- **Twilio 兼容接口**：提供 Twilio 格式的 SMS API，便于第三方集成
 - **录音管理**：自动录制通话音频并转录
 - **实时监控**：WebSocket 实时推送设备状态、信号强度、网络注册状态
-- **REST API**：完整的 RESTful API，支持 JWT 认证
-- **Web 管理界面**：现代化的 React 单页应用，支持深色模式
+- **REST API**：完整的 RESTful API，支持 JWT 和 API Key 双认证方式
+- **Web 管理界面**：现代化的 React 单页应用，支持浅色/深色主题切换
 
 ### 技术架构
 - **Monorepo**：pnpm workspace，TypeScript 全栈
@@ -163,6 +165,8 @@ at-gateway/
 │   │   │   │   ├── calls/     # 通话管理
 │   │   │   │   ├── status/    # 状态轮询
 │   │   │   │   ├── webhooks/  # Webhook 投递
+│   │   │   │   ├── credentials/ # API 凭证管理
+│   │   │   │   ├── twilio/    # Twilio 兼容接口
 │   │   │   │   ├── media/     # TTS/STT
 │   │   │   │   ├── events/    # WebSocket 网关
 │   │   │   │   └── ...
@@ -173,10 +177,17 @@ at-gateway/
 │   └── web/                    # React 前端
 │       ├── src/
 │       │   ├── api/           # API 客户端
-│       │   ├── components/    # 通用组件
-│       │   ├── lib/           # Zustand store
+│       │   ├── components/    # 通用组件（Layout, Sidebar）
+│       │   ├── lib/           # Zustand store（auth, theme）
 │       │   ├── pages/         # 页面组件
-│       │   ├── styles/        # Tailwind CSS
+│       │   │   ├── LoginPage.tsx
+│       │   │   ├── DashboardPage.tsx
+│       │   │   ├── SmsPage.tsx
+│       │   │   ├── CallsPage.tsx
+│       │   │   ├── RecordingsPage.tsx
+│       │   │   ├── CredentialsPage.tsx
+│       │   │   └── SettingsPage.tsx
+│       │   ├── styles/        # Tailwind CSS（主题变量）
 │       │   ├── App.tsx
 │       │   └── main.tsx
 │       └── package.json
@@ -196,6 +207,10 @@ at-gateway/
 │       │   ├── tts/           # TTS 提供商
 │       │   └── stt/           # STT 提供商
 │       └── package.json
+├── openspec/                   # OpenSpec 工作区
+│   ├── config.yaml            # 项目上下文配置
+│   ├── specs/                 # 功能规格文档
+│   └── changes/               # 变更记录
 ├── docker/
 │   ├── Dockerfile.api
 │   ├── Dockerfile.web
@@ -212,9 +227,11 @@ at-gateway/
 - `POST /api/auth/login` - 登录
 - `POST /api/auth/refresh` - 刷新令牌
 - `POST /api/auth/change-password` - 修改密码
+- `POST /api/auth/logout` - 登出
 
 ### 状态
 - `GET /api/status` - 获取调制解调器状态
+- `GET /api/health` - 健康检查（无需认证）
 
 ### 短信
 - `POST /api/sms` - 发送短信
@@ -231,61 +248,78 @@ at-gateway/
 - `GET /api/recordings` - 录音列表
 - `GET /api/recordings/:id` - 录音详情
 
+### API 凭证
+- `POST /api/credentials` - 创建凭证
+- `GET /api/credentials` - 凭证列表
+- `DELETE /api/credentials/:id` - 撤销凭证
+
 ### 设置
 - `GET /api/settings` - 获取所有设置
 - `PUT /api/settings` - 更新设置
+
+### Twilio 兼容（API Key Basic Auth）
+- `POST /api/twilio/Messages.json` - 发送短信（Twilio 格式）
 
 详细 API 文档：启动开发服务器后访问 http://localhost:3000/docs
 
 ## Webhook 事件
 
 ### SMS 接收事件
-```json
-POST {webhook.smsUrl}
-Headers:
-  X-Gateway-Signature: sha256=...
-  X-Gateway-Timestamp: 1234567890
-  X-Gateway-Event: sms.received
 
-Body:
-{
-  "id": "uuid",
-  "direction": "inbound",
-  "phoneNumber": "+8613800138000",
-  "content": "Hello",
-  "status": "received",
-  "encoding": "gsm7",
-  "createdAt": "2025-01-01T00:00:00.000Z"
-}
+SMS Webhook 使用 Twilio 兼容的 `application/x-www-form-urlencoded` 格式：
+
+```
+POST {webhook.smsUrl}
+Content-Type: application/x-www-form-urlencoded
+X-Gateway-Signature: <hmac-sha256-hex>
+X-Gateway-Timestamp: 1729598400000
+X-Gateway-Event: webhook.sms.received
+
+From=%2B8613800138000&To=&Body=Hello&MessageSid=uuid
 ```
 
 ### 通话事件
-```json
-POST {webhook.callUrl}
-Headers:
-  X-Gateway-Signature: sha256=...
-  X-Gateway-Event: call.incoming / call.ended
 
-Body:
+通话 Webhook 使用 JSON 格式：
+
+```
+POST {webhook.callUrl}
+Content-Type: application/json
+X-Gateway-Signature: <hmac-sha256-hex>
+X-Gateway-Timestamp: 1729598400000
+X-Gateway-Event: webhook.call.ended
+
 {
   "id": "uuid",
   "direction": "inbound",
   "phoneNumber": "+8613800138000",
-  "status": "ringing",
-  "startedAt": "2025-01-01T00:00:00.000Z"
+  "status": "ended",
+  "startedAt": "2025-01-01T00:00:00.000Z",
+  "endedAt": "2025-01-01T00:01:00.000Z",
+  "duration": 60
 }
 ```
 
 ### 签名验证
+
 ```javascript
 const crypto = require('crypto');
 
 function verifySignature(payload, signature, secret, timestamp) {
+  // timestamp 为毫秒级 Unix 时间戳（X-Gateway-Timestamp 头的值）
+  // payload 为请求体原始字符串（SMS 为 form-urlencoded，通话为 JSON）
   const data = `${timestamp}.${payload}`;
   const hmac = crypto.createHmac('sha256', secret).update(data).digest('hex');
-  return `sha256=${hmac}` === signature;
+  return hmac === signature;
 }
 ```
+
+### 重试机制
+
+- 每 5 秒轮询待投递任务
+- 最多重试 5 次，指数退避（2^n 分钟）
+- 超时时间：10 秒
+- 投递记录保留在 `webhook_deliveries` 表中
 
 ## 硬件支持
 
@@ -426,10 +460,12 @@ rsync -av ./storage/recordings /backup/
 4. 查看错误日志
 
 ### Webhook 未收到事件
-1. 检查 Webhook URL 配置
-2. 查看 `webhook_deliveries` 表
-3. 验证签名计算是否正确
-4. 确保目标服务器可达（防火墙、网络）
+1. 检查 Webhook URL 配置（`webhook.smsUrl` 和 `webhook.callUrl`）
+2. 查看 `webhook_deliveries` 表的 `status` 和 `failureReason` 字段
+3. 验证签名计算：注意 `X-Gateway-Timestamp` 是毫秒级时间戳，签名直接为 hex 字符串（无 `sha256=` 前缀）
+4. SMS Webhook 格式为 `application/x-www-form-urlencoded`（Twilio 兼容），通话为 `application/json`
+5. 确保目标服务器可达且响应 2xx 状态码
+6. 查看后端日志中的 Webhook 投递失败记录
 
 ## 开发路线图
 
@@ -464,11 +500,13 @@ A production-ready, full-stack voice and SMS gateway built for 4G LTE USB dongle
 
 - **SMS Send/Receive**: Full SMS functionality with GSM7/UCS-2 encoding, PDU mode
 - **Voice Calls**: Make and receive calls with TTS playback and STT transcription
-- **Webhook Notifications**: Real-time event delivery to external services
+- **Webhook Notifications**: Real-time event delivery to external services with HMAC signature and auto-retry
+- **API Credential Management**: Create and manage API Key/Secret pairs with expiration control and revocation
+- **Twilio-Compatible API**: Twilio-formatted SMS endpoints for seamless third-party integration
 - **Recording Management**: Automatic call recording and transcription
 - **Real-time Monitoring**: WebSocket-based live updates for device status, signal strength, network registration
-- **REST API**: Complete RESTful API with JWT authentication
-- **Web Dashboard**: Modern React SPA with dark mode support
+- **REST API**: Complete RESTful API with JWT and API Key authentication
+- **Web Dashboard**: Modern React SPA with light/dark theme toggle
 
 ## Tech Stack
 

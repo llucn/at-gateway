@@ -1,0 +1,60 @@
+schema: spec-driven
+
+context: |
+  ## 项目概述
+  AT Gateway 是一个 4G LTE USB 调制解调器语音和短信网关，monorepo 架构。
+  通过 SIMCom A7670C USB dongle 提供 SMS 收发和语音通话功能，并暴露 REST API 供外部系统集成。
+
+  ## 技术栈
+  - 后端：NestJS 10 + TypeORM + MySQL/MariaDB（端口 3000）
+  - 前端：React 19 + Vite + TailwindCSS + TanStack Query + Zustand（端口 5173）
+  - AT 引擎：自研串口通信层，PDU 编解码，URC 处理（packages/at-modem）
+  - 媒体：可插拔 TTS/STT（Piper、Edge TTS、Whisper.cpp）（packages/media）
+  - 部署：Docker Compose + systemd
+
+  ## Monorepo 结构
+  - packages/shared：共享 TypeScript 类型和常量
+  - packages/at-modem：AT 命令引擎，SMS/Call/Status 管理器
+  - packages/media：TTS/STT 抽象层
+  - apps/api：NestJS 后端
+  - apps/web：React SPA
+
+  ## API 约定
+  - 基础路径：/api（通过 Nginx 代理）
+  - 认证：JWT Bearer Token（大多数端点）或 API Key Basic Auth（Twilio 兼容端点）
+  - 分页：page（从 1 开始）+ limit（默认 20，最大 100）
+  - 时间格式：ISO 8601 字符串
+  - ID 格式：UUID v4
+  - 错误格式：{ statusCode, message, error }
+
+  ## 核心域
+  - 认证（auth）：JWT 登录、刷新、改密
+  - 短信（sms）：发送、接收、历史查询
+  - 通话（calls）：拨出、接入、挂断、记录查询
+  - 录音（recordings）：录音文件存储和检索
+  - API 凭证（credentials）：API Key 管理，支持 Twilio 兼容集成
+  - 设置（settings）：Webhook URL、调制解调器参数、TTS/STT 配置
+  - 状态（status）：调制解调器实时状态、信号质量
+  - Webhook：事件推送，HMAC 签名，自动重试
+  - 实时事件（WebSocket）：modem/sms/call 事件流
+
+  ## 编码约定
+  - SMS：自动检测 GSM-7（160字符/条）或 UCS-2（70字符/条）编码
+  - 电话号码：E.164 格式（如 +8613012345678）
+  - Webhook 签名头：X-Gateway-Signature、X-Gateway-Timestamp、X-Gateway-Event
+  - 音频格式：WAV/PCM/AMR，8000Hz 单声道 16-bit
+  - 提交规范：Conventional Commits（feat/fix/chore）
+
+rules:
+  proposal:
+    - 包含非目标（Non-goals）章节
+    - 明确受影响的 spec 文档列表
+    - 500 字以内
+  tasks:
+    - 每个任务控制在 2 小时以内
+    - 区分后端、前端、测试任务
+  spec:
+    - 描述系统"是什么"，不描述"如何实现"
+    - 包含完整的数据模型和枚举值
+    - API 端点须包含请求/响应结构
+    - 用中文撰写
