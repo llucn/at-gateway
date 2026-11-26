@@ -135,6 +135,74 @@ export default function SettingsPage() {
               />
             </div>
 
+            {/* Incoming call (Twilio stream) URL */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label htmlFor="incoming-url" style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em'
+              }}>
+                Incoming Call URL (Twilio Media Stream)
+              </label>
+              <input
+                type="url"
+                id="incoming-url"
+                value={settings['voice.incomingUrl'] || ''}
+                onChange={(e) => handleChange('voice.incomingUrl', e.target.value)}
+                placeholder="https://example.com/incoming"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  color: 'var(--text)',
+                  fontSize: 13,
+                  padding: '8px 12px',
+                  outline: 'none',
+                  width: '100%',
+                  transition: 'border-color var(--transition-fast)',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+              />
+            </div>
+
+            {/* Stream timeout */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label htmlFor="stream-timeout" style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em'
+              }}>
+                Stream Connect Timeout (ms)
+              </label>
+              <input
+                type="text"
+                id="stream-timeout"
+                value={settings['voice.streamTimeoutMs'] || ''}
+                onChange={(e) => handleChange('voice.streamTimeoutMs', e.target.value)}
+                placeholder="10000"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  color: 'var(--text)',
+                  fontSize: 13,
+                  padding: '8px 12px',
+                  outline: 'none',
+                  width: '100%',
+                  transition: 'border-color var(--transition-fast)',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+              />
+            </div>
+
             {/* Webhook Secret */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label htmlFor="secret" style={{

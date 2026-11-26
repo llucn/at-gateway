@@ -4,6 +4,7 @@
 export { SerialTransport, type SerialTransportOptions } from './transport/serial-transport.js';
 
 // Core
+export { FileTransfer, parseCftranTx, UPLOAD_CHUNK_BYTES } from './core/file-transfer.js';
 export { AtClient, type AtClientOptions, type AtResponse } from './core/at-client.js';
 
 // Codec

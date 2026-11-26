@@ -109,6 +109,13 @@ export default function CallsPage() {
                         <p>Started: {new Date(call.startedAt).toLocaleString()}</p>
                         {call.duration && <p>Duration: {call.duration}s</p>}
                         {call.transcription && <p className="mt-1">Transcript: {call.transcription}</p>}
+                        {call.failureReason && <p>Reason: {call.failureReason}</p>}
+                        {call.metadata?.callSid && (
+                          <p className="font-mono text-xs">CallSid: {String(call.metadata.callSid)}</p>
+                        )}
+                        {call.metadata?.streamSid && (
+                          <p className="font-mono text-xs">StreamSid: {String(call.metadata.streamSid)}</p>
+                        )}
                       </div>
                     </div>
                   </div>

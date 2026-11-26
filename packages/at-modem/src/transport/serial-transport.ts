@@ -10,6 +10,8 @@ export interface SerialTransportOptions {
 
 export interface SerialTransportEvents {
   data: (line: string) => void;
+  /** Raw bytes as received from the port (before line splitting). */
+  raw: (chunk: Buffer) => void;
   error: (error: Error) => void;
   open: () => void;
   close: () => void;
@@ -60,6 +62,7 @@ export class SerialTransport extends EventEmitter {
         }
       });
 
+      this.port.on('data', (chunk: Buffer) => this.emit('raw', chunk));
       this.port.on('error', (err) => this.emit('error', err));
       this.port.on('close', () => {
         this.isOpen = false;
@@ -100,6 +103,20 @@ export class SerialTransport extends EventEmitter {
       }
 
       this.port.write(data + '\r', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
+
+  /** Write bytes exactly as given: no terminator is appended (binary file transfer). */
+  async writeRaw(data: Buffer | string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.port || !this.isOpen) {
+        reject(new Error('Port is not open'));
+        return;
+      }
+      this.port.write(data, (err) => {
         if (err) reject(err);
         else resolve();
       });

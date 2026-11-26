@@ -278,6 +278,23 @@ X-Gateway-Event: webhook.sms.received
 From=%2B8613800138000&To=&Body=Hello&MessageSid=uuid
 ```
 
+### 来电通知与语音流（Twilio 兼容）
+
+设置 `voice.incomingUrl` 后，来电不会被自动接听，而是像 Twilio 一样通知你的应用：
+
+```
+POST {voice.incomingUrl}
+Content-Type: application/x-www-form-urlencoded
+X-Gateway-Signature: <hmac-sha256-hex>   # 与其他 Webhook 相同：HMAC(secret, "<timestamp>.<body>")
+X-Gateway-Timestamp: 1729598400000
+
+CallSid=CA…&AccountSid=AC…&From=%2B8613800138000&To=&CallStatus=ringing&Direction=inbound&ApiVersion=2010-04-01
+```
+
+应用返回 TwiML：`<Response><Connect><Stream url="wss://your.app/connection"/></Connect></Response>`（另支持 `<Hangup/>`、`<Reject/>`）。网关随后接听，作为 WebSocket 客户端连接该地址，发送 `connected`、`start`、`media`（base64 μ-law 8kHz，20ms/帧）、`mark`、`stop`，并处理应用发来的 `media`、`mark`、`clear`，可直接对接 Twilio 的 Media Streams 示例应用。应用关闭 WebSocket 时网关挂断来电。
+
+> 限制：模块只能通过文件播放/录音，且播放时不能录音，因此是半双工分段交换，往返延迟为数秒，不支持用户打断检测。
+
 ### 通话事件
 
 通话 Webhook 使用 JSON 格式：

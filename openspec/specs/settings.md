@@ -25,6 +25,15 @@
 | `webhook.maxAttempts` | number | `3` | 最大重试次数 |
 | `webhook.enabled` | boolean | `false` | 是否启用 Webhook 推送 |
 
+### 来电语音（Twilio 兼容）设置
+
+| 键 | 值类型 | 默认值 | 说明 |
+|----|--------|--------|------|
+| `voice.incomingUrl` | string | 空 | 来电时通知的 HTTP URL，空表示不启用（来电只记录、不接听） |
+| `voice.streamTimeoutMs` | number | `10000` | 建立媒体流 WebSocket 的超时（毫秒） |
+
+通知请求的超时和签名密钥沿用 `webhook.timeoutMs` 和 `webhook.secret`。
+
 ### 调制解调器设置
 
 | 键 | 值类型 | 默认值 | 说明 |

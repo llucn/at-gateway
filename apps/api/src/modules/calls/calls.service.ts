@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { CallRecord } from '../../entities/call-record.entity';
 import { ModemService } from '../modem/modem.service';
+import { VoiceBridgeService } from '../voice-bridge/voice-bridge.service';
 
 @Injectable()
 export class CallsService {
@@ -12,6 +13,7 @@ export class CallsService {
     private callRepo: Repository<CallRecord>,
     private modemService: ModemService,
     private eventEmitter: EventEmitter2,
+    private voiceBridge: VoiceBridgeService,
   ) {}
 
   async makeCall(phoneNumber: string, ttsMessage?: string) {
@@ -31,13 +33,13 @@ export class CallsService {
 
     try {
       await manager.dial(phoneNumber);
-      call.status = 'active';
-      call.answeredAt = new Date();
+      // ATD is accepted before the callee answers: stay 'ringing' until AT+CLCC reports the call active.
+      call.status = 'ringing';
       await this.callRepo.save(call);
+      void this.trackOutboundAnswer(call, manager);
 
       // TODO: Play TTS if provided
-      
-      this.eventEmitter.emit('call.started', call);
+
       return call;
     } catch (error: any) {
       call.status = 'failed';
@@ -45,6 +47,24 @@ export class CallsService {
       call.endedAt = new Date();
       await this.callRepo.save(call);
       throw error;
+    }
+  }
+
+  private async trackOutboundAnswer(call: CallRecord, manager: NonNullable<ReturnType<ModemService['getCallManager']>>) {
+    try {
+      await manager.waitForAnswer(60000);
+      call.status = 'active';
+      call.answeredAt = new Date();
+      await this.callRepo.save(call);
+      this.eventEmitter.emit('call.started', call);
+    } catch (error: any) {
+      const current = await this.callRepo.findOne({ where: { id: call.id } });
+      if (current && (current.status === 'ringing' || current.status === 'initiating')) {
+        current.status = 'failed';
+        current.failureReason = error.message;
+        current.endedAt = new Date();
+        await this.callRepo.save(current);
+      }
     }
   }
 
@@ -71,6 +91,22 @@ export class CallsService {
 
   @OnEvent('call.incoming')
   async handleIncomingCall(data: any) {
+    // With a notification URL the application decides what happens: RING repeats every few seconds
+    // and only +CLIP carries the number, so act once, on the first event that has a number.
+    if (await this.voiceBridge.isEnabled()) {
+      if (!data.phoneNumber || data.phoneNumber === 'unknown' || !this.voiceBridge.tryAcquire()) return;
+      const incoming = this.callRepo.create({
+        direction: 'inbound',
+        phoneNumber: data.phoneNumber,
+        status: 'ringing',
+        startedAt: new Date(),
+      });
+      await this.callRepo.save(incoming);
+      this.eventEmitter.emit('webhook.call.incoming', incoming);
+      void this.voiceBridge.handleIncoming(incoming);
+      return;
+    }
+
     const call = this.callRepo.create({
       direction: 'inbound',
       phoneNumber: data.phoneNumber || 'unknown',

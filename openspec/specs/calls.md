@@ -33,6 +33,19 @@
                                     ↘ missed（未接）
 ```
 
+外呼时 `ATD` 返回并不代表对方已接听：记录保持 `ringing`，直到 `AT+CLCC` 报告通话进入 active 才转为 `active` 并写入 `answeredAt`。
+
+### 来电由应用决定接听（Twilio 兼容）
+
+配置了 `voice.incomingUrl` 时，来电不会自动接听：网关向该 URL 发起 Twilio 格式的 HTTP 通知，按应用返回的 TwiML 处理：
+
+- `<Connect><Stream url="wss://…"/></Connect>`：接听并建立 Media Streams WebSocket 会话（8kHz μ-law，半双工分段，延迟数秒）；`metadata` 记录 `callSid` 和 `streamSid`。
+- `<Hangup/>`：接听后立即挂断；`<Reject/>` 或无可执行动词：不接听直接挂断，状态 `ended`。
+- 通知失败/超时、Stream 地址非法或连接失败：挂断，状态 `failed`，`failureReason` 记录原因。
+- 应用关闭 WebSocket 或主叫挂断：网关发送 `stop`、挂断并将状态置为 `ended`。
+
+未配置时保持原行为（只记录，不接听）。详见 `openspec` 变更 `add-twilio-media-stream-bridge`。
+
 ## API 端点
 
 ### POST /calls

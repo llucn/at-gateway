@@ -62,3 +62,4 @@ temp/
 # Voice verification scripts: recordings must never be committed, but the sample audio must be
 apps/api/src/sample/output/
 !apps/api/src/sample/*.wav
+ai-voice-assistant-openai-deepgram

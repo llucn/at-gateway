@@ -90,8 +90,31 @@ export class CallManager {
       throw new Error(`Dial failed: ${response.result}`);
     }
 
-    this.currentCall.state = CallState.ACTIVE;
-    this.currentCall.answerTime = new Date();
+    // ATD returns OK as soon as the call is placed, long before the callee picks up:
+    // the call stays DIALING until waitForAnswer() sees it ACTIVE in AT+CLCC.
+  }
+
+  /** Poll AT+CLCC until the call is active. Rejects on timeout or when the call disappears. */
+  async waitForAnswer(timeoutMs = 60000, pollMs = 500): Promise<void> {
+    const end = Date.now() + timeoutMs;
+    let seen = false;
+    while (Date.now() < end) {
+      const calls = await this.getCallStatus();
+      if (calls.some((c) => c.state === CallState.ACTIVE)) {
+        if (this.currentCall) {
+          this.currentCall.state = CallState.ACTIVE;
+          this.currentCall.answerTime = new Date();
+        }
+        return;
+      }
+      if (calls.length > 0) seen = true;
+      else if (seen || Date.now() - (this.currentCall?.startTime?.getTime() ?? 0) > 5000) {
+        this.currentCall = null;
+        throw new Error('Call ended before it was answered');
+      }
+      await new Promise((r) => setTimeout(r, pollMs));
+    }
+    throw new Error('Timeout waiting for the call to be answered');
   }
 
   async answer(): Promise<void> {
@@ -99,7 +122,10 @@ export class CallManager {
       throw new Error('No incoming call to answer');
     }
 
-    await this.client.sendCommand('ATA');
+    const response = await this.client.sendCommand('ATA');
+    if (!response.success) {
+      throw new Error(`Answer failed: ${response.result}`);
+    }
     this.currentCall.state = CallState.ACTIVE;
     this.currentCall.answerTime = new Date();
   }
@@ -110,6 +136,10 @@ export class CallManager {
     }
 
     await this.client.sendCommand('ATH');
+    // ATH is ignored when AT+CVHU=1 (the default here); AT+CHUP always hangs up.
+    if ((await this.getCallStatus()).length > 0) {
+      await this.client.sendCommand('AT+CHUP', 5000);
+    }
     this.currentCall = null;
   }
 
@@ -157,6 +187,56 @@ export class CallManager {
     }
 
     return calls;
+  }
+
+  // Voice audio via the module file system (A7670G has no USB audio / AT+CPCMREG).
+  // Play and record cannot run at the same time on this firmware.
+
+  /** Play a WAV file stored on the module to the remote party. Resolves when playback has started. */
+  async playToRemote(modulePath: string): Promise<void> {
+    const r = await this.client.sendCommand(`AT+CCMXPLAY="${modulePath}",1,0`, 15000);
+    if (!r.success) throw new Error(`AT+CCMXPLAY failed: ${r.result}`);
+  }
+
+  async stopPlayback(): Promise<void> {
+    await this.client.sendCommand('AT+CCMXSTOP', 5000).catch(() => undefined);
+  }
+
+  /** Record the remote party's voice (8kHz 16-bit mono WAV) into a file on the module. */
+  async startRecording(modulePath: string): Promise<void> {
+    const r = await this.client.sendCommand(`AT+CREC=2,"${modulePath}"`);
+    if (!r.success) throw new Error(`AT+CREC failed: ${r.result}`);
+  }
+
+  async stopRecording(): Promise<void> {
+    await this.client.sendCommand('AT+CREC=0', 5000).catch(() => undefined);
+  }
+
+  /** Resolve when a playback-finished URC arrives (`+AUDIOSTATE: audio play stop`). */
+  waitForPlaybackEnd(timeoutMs: number): { promise: Promise<void>; cancel: () => void } {
+    let cancel = () => {};
+    const promise = new Promise<void>((resolve, reject) => {
+      const onUrc = (line: string) => {
+        if (line.includes('audio play stop')) {
+          cleanup();
+          resolve();
+        }
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Timeout waiting for the end of playback'));
+      }, timeoutMs);
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.client.off('urc', onUrc);
+      };
+      cancel = () => {
+        cleanup();
+        resolve();
+      };
+      this.client.on('urc', onUrc);
+    });
+    return { promise, cancel };
   }
 
   // Audio control methods for A7670C

@@ -1,6 +1,7 @@
 // AT command client with queue and URC handling
 import { EventEmitter } from 'node:events';
 import { SerialTransport } from '../transport/serial-transport.js';
+import { FileTransfer } from './file-transfer.js';
 
 export interface AtClientOptions {
   transport: SerialTransport;
@@ -13,6 +14,7 @@ export interface AtCommand {
   timeout: number;
   expectPrompt?: boolean; // For commands like AT+CMGS that wait for '>'
   rawData?: string;       // If set, write rawData+Ctrl+Z instead of command string
+  exclusive?: () => Promise<void>; // If set, run this instead of writing a command (raw transfers)
   resolve: (response: AtResponse) => void;
   reject: (error: Error) => void;
 }
@@ -47,12 +49,15 @@ export class AtClient extends EventEmitter {
   private debug: boolean;
   /** True when the next line is the PDU/text body of a +CMT: URC. */
   private pendingUrcBody = false;
+  /** Binary file upload/download (AT+CFTRANRX / AT+CFTRANTX). */
+  readonly files: FileTransfer;
 
   constructor(options: AtClientOptions) {
     super();
     this.transport = options.transport;
     this.commandTimeout = options.commandTimeout ?? 10000;
     this.debug = options.debug ?? false;
+    this.files = new FileTransfer(this, this.transport);
 
     this.transport.on('data', (line) => this.handleLine(line));
     this.transport.on('error', (err) => this.emit('error', err));
@@ -71,6 +76,16 @@ export class AtClient extends EventEmitter {
    * is active. These must never be absorbed into responseBuffer.
    */
   private isUnsolicitedLine(line: string): boolean {
+    // "+CREG: 0,1" is the reply to AT+CREG? but also a URC; while the matching query is
+    // pending it is the response and must stay in the command buffer.
+    const pending = this.currentCommand?.command;
+    if (pending) {
+      for (const prefix of ['+CREG:', '+CGREG:', '+CEREG:']) {
+        if (line.startsWith(prefix) && pending.startsWith(`AT${prefix.slice(0, -1)}?`)) {
+          return false;
+        }
+      }
+    }
     return (
       line.startsWith('+CMT:') ||
       line.startsWith('+CMTI:') ||
@@ -108,8 +123,8 @@ export class AtClient extends EventEmitter {
       return;
     }
 
-    // If no command is active, treat as URC (unsolicited result code)
-    if (!this.currentCommand) {
+    // If no command is active (or a raw transfer owns the port), treat as URC
+    if (!this.currentCommand || this.currentCommand.exclusive) {
       this.emit('urc', line);
       return;
     }
@@ -182,6 +197,18 @@ export class AtClient extends EventEmitter {
     this.currentCommand = cmd;
     this.responseBuffer = [];
 
+    if (cmd.exclusive) {
+      const run = cmd.exclusive;
+      run()
+        .then(() => cmd.resolve({ success: true, lines: [], result: 'OK', raw: '' }))
+        .catch((err) => cmd.reject(err instanceof Error ? err : new Error(String(err))))
+        .finally(() => {
+          if (this.currentCommand === cmd) this.currentCommand = null;
+          this.processQueue();
+        });
+      return;
+    }
+
     // Raw-data entries (PDU submit): write the raw bytes + Ctrl+Z,
     // do NOT write the '<PDU>' label string to the serial port.
     const writePromise = cmd.rawData !== undefined
@@ -219,6 +246,24 @@ export class AtClient extends EventEmitter {
       if (!this.currentCommand) {
         this.processQueue();
       }
+    });
+  }
+
+  /**
+   * Run `fn` while no AT command is in flight and none is started (the serial port is owned by `fn`).
+   * Used for binary transfers whose prompts/data do not follow the line protocol. `fn` must not call
+   * sendCommand (it would queue behind itself).
+   */
+  async runExclusive(fn: () => Promise<void>): Promise<void> {
+    await new Promise<unknown>((resolve, reject) => {
+      this.commandQueue.push({
+        command: '<exclusive>',
+        timeout: 0,
+        resolve,
+        reject,
+        exclusive: fn,
+      });
+      if (!this.currentCommand) this.processQueue();
     });
   }
 
