@@ -58,3 +58,7 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Voice verification scripts: recordings must never be committed, but the sample audio must be
+apps/api/src/sample/output/
+!apps/api/src/sample/*.wav
