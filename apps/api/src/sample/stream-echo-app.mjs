@@ -38,6 +38,13 @@ function wavToMulaw(file) {
   return out;
 }
 
+// μ-law byte -> linear sample, for the loudness readout of incoming frames.
+function mulawToLinear(byte) {
+  const u = ~byte & 0xff;
+  const mag = (((u & 0x0f) << 3) + 0x84) << ((u >> 4) & 0x07);
+  return u & 0x80 ? 0x84 - mag : mag - 0x84;
+}
+
 const server = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/incoming') {
     let body = '';
@@ -59,12 +66,27 @@ wss.on('connection', (ws) => {
   log('WS connected');
   let streamSid = '';
   let media = 0;
+  let sumSq = 0;
+  let samples = 0;
+  let peak = 0;
   let sampleSent = false;
   ws.on('message', (data) => {
     const msg = JSON.parse(data.toString());
     if (msg.event === 'media') {
       media++;
-      if (media === 1 || media % 50 === 0) log(`media #${media} (${msg.media.payload.length} b64 chars)`);
+      const frame = Buffer.from(msg.media.payload, 'base64');
+      for (const b of frame) {
+        const v = mulawToLinear(b);
+        sumSq += v * v;
+        samples++;
+        peak = Math.max(peak, Math.abs(v));
+      }
+      if (media === 1 || media % 50 === 0) {
+        log(`media #${media}: last ${samples} samples rms=${Math.round(Math.sqrt(sumSq / Math.max(1, samples)))} peak=${peak}`);
+        sumSq = 0;
+        samples = 0;
+        peak = 0;
+      }
       if (MODE === 'echo') {
         ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: msg.media.payload } }));
       }

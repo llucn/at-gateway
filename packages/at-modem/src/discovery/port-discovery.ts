@@ -86,18 +86,21 @@ async function testAtCommand(path: string, baudRate: number): Promise<boolean> {
 
     let responded = false;
 
-    const timeout = setTimeout(() => {
-      port.close();
-      resolve(false);
-    }, 2000);
+    // Resolve only once the port is really closed: on Windows close() is asynchronous and opening
+    // the same port right after the probe fails with error 170 (busy).
+    const closeThen = (result: boolean) => {
+      if (port.isOpen) port.close(() => resolve(result));
+      else resolve(result);
+    };
+
+    const timeout = setTimeout(() => closeThen(false), 2000);
 
     port.on('data', (data) => {
       const str = data.toString();
       if (str.includes('OK')) {
         responded = true;
         clearTimeout(timeout);
-        port.close();
-        resolve(true);
+        closeThen(true);
       }
     });
 
@@ -117,8 +120,7 @@ async function testAtCommand(path: string, baudRate: number): Promise<boolean> {
       port.write('AT\r', (writeErr) => {
         if (writeErr) {
           clearTimeout(timeout);
-          port.close();
-          resolve(false);
+          closeThen(false);
         }
       });
     });

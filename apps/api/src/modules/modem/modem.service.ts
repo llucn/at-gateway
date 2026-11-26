@@ -42,7 +42,7 @@ export class ModemService implements OnModuleInit, OnModuleDestroy {
     try {
       let port = this.configService.get<string>('MODEM_PORT');
 
-      // Auto-detect if not specified
+      // Auto-detect if not specified (the probe closes the port before returning)
       if (!port && this.configService.get('MODEM_AUTO_DETECT')) {
         this.logger.log('Auto-detecting modem port...');
         const detectedPort = await autoDetectModem(this.configService.get('MODEM_BAUD_RATE')!);

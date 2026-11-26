@@ -23,7 +23,10 @@ export interface MediaStreamSessionOptions {
   device: BridgeAudioDevice;
   /** Timeout for establishing the WebSocket. */
   connectTimeoutMs?: number;
-  /** Length of one recording segment (upstream latency). */
+  /**
+   * Length of one recording segment (upstream latency). Default 2500ms. Do NOT use exactly 2000ms:
+   * on the A7670G a 2000ms AT+CREC recording is returned empty (measured), other lengths work.
+   */
   segmentMs?: number;
   /** Module file names (module FS root is `C:/`). */
   recPath?: string;
@@ -63,7 +66,7 @@ export class MediaStreamSession extends EventEmitter {
 
   constructor(private opts: MediaStreamSessionOptions) {
     super();
-    this.segmentMs = opts.segmentMs ?? 2000;
+    this.segmentMs = opts.segmentMs ?? 2500;
     this.recPath = opts.recPath ?? 'C:/vb_rec.wav';
     this.playPath = opts.playPath ?? 'C:/vb_play.wav';
   }
