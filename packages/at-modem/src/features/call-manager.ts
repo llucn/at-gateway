@@ -192,10 +192,24 @@ export class CallManager {
   // Voice audio via the module file system (A7670G has no USB audio / AT+CPCMREG).
   // Play and record cannot run at the same time on this firmware.
 
+  /**
+   * The module answers ERROR to AT+CCMXPLAY / AT+CREC for a short while after the previous audio
+   * operation stopped (measured: ~100ms before play, ~300-400ms before record). Retry briefly.
+   */
+  private async audioCommand(command: string, timeout: number): Promise<void> {
+    let last = '';
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const r = await this.client.sendCommand(command, timeout);
+      if (r.success) return;
+      last = r.result;
+      await new Promise((res) => setTimeout(res, 100));
+    }
+    throw new Error(`${command.split('=')[0]} failed: ${last}`);
+  }
+
   /** Play a WAV file stored on the module to the remote party. Resolves when playback has started. */
   async playToRemote(modulePath: string): Promise<void> {
-    const r = await this.client.sendCommand(`AT+CCMXPLAY="${modulePath}",1,0`, 15000);
-    if (!r.success) throw new Error(`AT+CCMXPLAY failed: ${r.result}`);
+    await this.audioCommand(`AT+CCMXPLAY="${modulePath}",1,0`, 15000);
   }
 
   async stopPlayback(): Promise<void> {
@@ -204,8 +218,7 @@ export class CallManager {
 
   /** Record the remote party's voice (8kHz 16-bit mono WAV) into a file on the module. */
   async startRecording(modulePath: string): Promise<void> {
-    const r = await this.client.sendCommand(`AT+CREC=2,"${modulePath}"`);
-    if (!r.success) throw new Error(`AT+CREC failed: ${r.result}`);
+    await this.audioCommand(`AT+CREC=2,"${modulePath}"`, 10000);
   }
 
   async stopRecording(): Promise<void> {

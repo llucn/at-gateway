@@ -63,7 +63,7 @@ export class MediaStreamSession extends EventEmitter {
 
   constructor(private opts: MediaStreamSessionOptions) {
     super();
-    this.segmentMs = opts.segmentMs ?? 1000;
+    this.segmentMs = opts.segmentMs ?? 2000;
     this.recPath = opts.recPath ?? 'C:/vb_rec.wav';
     this.playPath = opts.playPath ?? 'C:/vb_play.wav';
   }
